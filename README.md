@@ -1,50 +1,68 @@
-# Grade Insight
+# 📊 Grade Insight
 
-**Grade Insight** is a lightweight FastAPI-based web app for uploading and analyzing student grade data from CSV files. It helps educators clean, process, and visualize grades to give students and parents clear insights into academic performance.
+**Grade Insight** is a lightweight grading viewer and upload tool that allows teachers to upload marks via CSV and gives students/parents a simple progress dashboard.
 
-## Features
+---
 
-- Upload CSV grade files
-- Auto-clean sparse or incomplete data
-- Focus on consistently reported assignments
-- Provide meaningful grade summaries
-- FastAPI backend for speed and simplicity
+## 🚀 Features
 
-## Getting Started
+- 🧑‍🏫 **CSV Template or Google Classroom Upload**
+- 🔍 **Automatic Data Cleaning**
+- 📈 **Student/Parent Grade Dashboard**
+- 🔄 **Smart Updates – Avoids Duplicates**
+- 🐳 **Dockerized FastAPI App**
 
-### Prerequisites
+---
 
-- Python 3.9+
-- pip
+## 🛠️ Project Structure
 
-### Install dependencies
+- `main.py` – FastAPI backend app
+- `Dockerfile` – Build and run the service
+- `requirements.txt` – Python dependencies
+
+---
+
+## 📁 CSV Format
+
+Teachers can upload marks using:
+1. The **Grade Insight template** (downloadable from the UI), or  
+2. An export from **Google Classroom** (if columns match)
+
+**CSV Structure:**
+
+| A           | B           | C       | D            | E            | ... |
+|-------------|-------------|---------|--------------|--------------|-----|
+| First Name  | Last Name   | Email   | Assignment 1 | Assignment 2 | ... |
+|             |             |         | Date (opt)   | Date (opt)   |     |
+|             |             |         | Max Points   | Max Points   |     |
+| John        | Smith       | ...     | 18           | 20           |     |
+| Jane        | Doe         | ...     | 20           | 17           |     |
+
+---
+
+## 🔁 Workflow
+
+1. Teacher visits the upload page
+2. Option to download standardized CSV template
+3. Fill in template or export from Google Classroom
+4. Upload CSV
+5. System:
+   - Parses and normalizes data
+   - Drops empty or invalid columns
+   - Inserts or updates database
+6. Upload summary shows:
+   - ✅ New entries
+   - 🔁 Updated entries
+   - ⚠️ Skipped entries (with reasons)
+7. Students/parents access individual grade pages
+8. Teachers re-upload anytime — data merges cleanly
+
+---
+
+## 🐳 Running Locally
+
+Build and run the container:
 
 ```bash
-pip install -r requirements.txt
-```
-
-### Run the app
-
-```bash
-uvicorn main:app --reload
-```
-
-Then open [http://localhost:8000](http://localhost:8000) in your browser.
-
-## API Endpoints
-
-- `GET /` – Test endpoint to confirm the API is running
-- `POST /upload-csv/` – Upload a CSV file containing student grades
-
-## Folder Structure
-
-```
-grade_insight/
-├── main.py         # FastAPI app
-├── requirements.txt
-└── README.md
-```
-
-## License
-
-MIT License
+docker build -t grade-insight .
+docker run -p 8080:8080 grade-insight
