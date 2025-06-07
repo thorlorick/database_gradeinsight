@@ -22,10 +22,6 @@ def get_db():
     finally:
         db.close()
 
-@app.get("/debug-env")
-def debug_env():
-    return {"DATABASE_URL": os.getenv("DATABASE_URL")}
-
 @app.get("/download-template")
 def download_template():
     file_path = "template.csv"
