@@ -12,6 +12,10 @@ app = FastAPI()
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
+@app.get("/debug-env")
+def debug_env():
+    return {"DATABASE_URL": os.getenv("DATABASE_URL")}
+
 @app.get("/download-template")
 def download_template():
     file_path = "template.csv"
