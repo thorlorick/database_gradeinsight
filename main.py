@@ -3,6 +3,9 @@ from fastapi.responses import FileResponse
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
+from database import Base, engine
+from models import Student, Assignment, Grade  # Add any other models you have
+
 
 app = FastAPI()
 
