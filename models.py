@@ -2,8 +2,6 @@ from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
 from database import Base
 
-Base = declarative_base()
-
 class Student(Base):
     __tablename__ = 'students'
     student_number = Column(String, primary_key=True, index=True)
