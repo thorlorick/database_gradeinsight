@@ -1,11 +1,12 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.responses import FileResponse
 import pandas as pd
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
-from database import Base, engine
-from models import Student, Assignment, Grade  # Add any other models you have
+from sqlalchemy.orm import Session
+from database import Base, engine, SessionLocal
+from models import Student, Assignment, Grade
 import models
 
 app = FastAPI()
