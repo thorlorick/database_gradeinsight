@@ -9,6 +9,9 @@ from models import Student, Assignment, Grade  # Add any other models you have
 
 app = FastAPI()
 
+# Create tables if they don't exist
+Base.metadata.create_all(bind=engine)
+
 @app.get("/download-template")
 def download_template():
     file_path = "template.csv"
