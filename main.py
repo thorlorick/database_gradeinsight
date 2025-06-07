@@ -27,3 +27,7 @@ def test_db():
         return {"status": "Database connection successful"}
     except OperationalError as e:
         return {"status": "Database connection failed", "error": str(e)}
+
+@app.get("/")
+def read_root():
+    return {"message": "Grade Insight is running"}
