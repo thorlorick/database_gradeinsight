@@ -35,7 +35,6 @@ def download_template():
 def test_db():
     database_url = os.getenv("DATABASE_URL")
     try:
-        engine = create_engine(database_url)
         with engine.connect() as conn:
             conn.execute("SELECT 1")
         return {"status": "Database connection successful"}
