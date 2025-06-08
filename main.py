@@ -1,3 +1,4 @@
+import io
 from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.responses import FileResponse
 import pandas as pd
@@ -48,7 +49,7 @@ def read_root():
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
-    df = pd.read_csv(pd.compat.StringIO(contents.decode("utf-8")))
+    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
 
     # Validate column presence
     required_columns = {"student_number", "first_name", "last_name", "email"}
