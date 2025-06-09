@@ -163,3 +163,26 @@ def view_students(db: Session = Depends(get_db)):
             "last_name": s.last_name,
         })
     return {"students": result}
+
+
+@app.get("/view-grades")
+def view_grades(db: Session = Depends(get_db)):
+    students = db.query(Student).all()
+    result = []
+    for s in students:
+        grades_list = []
+        for grade in s.grades:
+            assignment = grade.assignment
+            grades_list.append({
+                "assignment": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "score": grade.score,
+                "max_points": assignment.max_points,
+            })
+        result.append({
+            "email": s.email,
+            "first_name": s.first_name,
+            "last_name": s.last_name,
+            "grades": grades_list,
+        })
+    return {"students": result}
