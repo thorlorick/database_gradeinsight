@@ -4,4 +4,9 @@ sqlalchemy
 psycopg2-binary
 python-multipart
 pandas
+Jinja2
+python-dotenv
+email-validator
+
+
 
