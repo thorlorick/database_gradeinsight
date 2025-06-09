@@ -1,13 +1,13 @@
 from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship
 from database import Base
 
 class Student(Base):
     __tablename__ = 'students'
-    student_number = Column(String, primary_key=True, index=True)
+    email = Column(String, primary_key=True, index=True)  # email is now the unique ID
     first_name = Column(String)
     last_name = Column(String)
-    email = Column(String, unique=True, nullable=True)
+    student_number = Column(String, nullable=True)  # optional or legacy field
     grades = relationship("Grade", back_populates="student")
 
 class Assignment(Base):
@@ -21,10 +21,9 @@ class Assignment(Base):
 class Grade(Base):
     __tablename__ = 'grades'
     id = Column(Integer, primary_key=True, index=True)
-    student_number = Column(String, ForeignKey('students.student_number'))
+    email = Column(String, ForeignKey('students.email'))  # match to Student.email
     assignment_id = Column(Integer, ForeignKey('assignments.id'))
     score = Column(Float)
 
     student = relationship("Student", back_populates="grades")
     assignment = relationship("Assignment", back_populates="grades")
-
