@@ -130,3 +130,31 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
     db.commit()
     return {"status": "Upload processed successfully"}
+
+
+@app.get("/view-data")
+def view_data(db: Session = Depends(get_db)):
+    data = []
+    students = db.query(Student).all()
+
+    for student in students:
+        student_data = {
+            "email": student.email,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grades": []
+        }
+
+        for grade in student.grades:
+            assignment = db.query(Assignment).filter_by(id=grade.assignment_id).first()
+            student_data["grades"].append({
+                "assignment": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "score": grade.score,
+                "max_points": assignment.max_points
+            })
+
+        data.append(student_data)
+
+    return {"students": data}
+
