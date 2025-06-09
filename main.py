@@ -18,11 +18,11 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 Base.metadata.create_all(bind=engine)
 
-@app.post("/reset-db")
-def reset_db_endpoint():
+@app.get("/reset-db")
+def reset_db_get():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    return {"status": "Database reset"}
+    return {"status": "Database reset (GET)"
 
 
 def get_db():
