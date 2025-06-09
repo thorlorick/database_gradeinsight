@@ -1,13 +1,16 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Upload CSV</title>
+  <meta charset="UTF-8" />
+  <title>Upload CSV</title>
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-    <h2>Upload CSV file</h2>
-    <form action="/upload" enctype="multipart/form-data" method="post">
-        <input name="file" type="file" accept=".csv" required>
-        <button type="submit">Upload</button>
-    </form>
+  <h1>Upload CSV File</h1>
+  <form action="/upload" enctype="multipart/form-data" method="post">
+    <input name="file" type="file" accept=".csv" required />
+    <button type="submit">Upload</button>
+  </form>
 </body>
 </html>
+
