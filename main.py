@@ -2,6 +2,9 @@ import io
 from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.responses import FileResponse
 import pandas as pd
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
@@ -10,7 +13,13 @@ from database import Base, engine, SessionLocal
 from models import Student, Assignment, Grade
 import models
 
+
 app = FastAPI()
+
+templates = Jinja2Templates(directory="templates")
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
 
 # Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
@@ -30,6 +39,19 @@ def download_template():
         return FileResponse(path=file_path, filename="grade_insight_template.csv", media_type='text/csv')
     else:
         return {"error": "Template file not found."}
+        
+@app.get("/upload", response_class=HTMLResponse)
+def upload_form(request: Request):
+    return templates.TemplateResponse("upload.html", {"request": request})
+
+@app.post("/upload", response_class=HTMLResponse)
+async def upload_file(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    contents = await file.read()
+    with open("temp_upload.csv", "wb") as f:
+        f.write(contents)
+    # TODO: Add your CSV processing logic here
+    return templates.TemplateResponse("upload_success.html", {"request": request, "filename": file.filename})
+
 
 @app.get("/testdb")
 def test_db():
