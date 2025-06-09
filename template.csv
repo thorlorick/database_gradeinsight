@@ -1,5 +1,4 @@
-First Name,Last Name,Email,Assignment 1,Assignment 2
-,, ,2025-06-01,2025-06-15
-,, ,100,100
-John,Doe,john@example.com,,
-Jane,Smith,jane@example.com,,
+student_number,first_name,last_name,email,Math Test,Essay 1,Science Lab
+1001,Alice,Smith,alice@example.com,85,90,78
+1002,Bob,Johnson,bob@example.com,88,92,81
+1003,Charlie,Brown,charlie@example.com,92,85,89
