@@ -15,14 +15,14 @@ class Assignment(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     date = Column(Date, nullable=True)
-    max_points = Column(Float)
+    max_points = Column(Float, nullable=False)
     grades = relationship("Grade", back_populates="assignment")
 
 class Grade(Base):
     __tablename__ = 'grades'
     id = Column(Integer, primary_key=True, index=True)
-    email = Column(String, ForeignKey('students.email'))  # match to Student.email
-    assignment_id = Column(Integer, ForeignKey('assignments.id'))
+    email = Column(String, ForeignKey('students.email'), nullable=False)  # foreign key to student email
+    assignment_id = Column(Integer, ForeignKey('assignments.id'), nullable=False)
     score = Column(Float)
 
     student = relationship("Student", back_populates="grades")
