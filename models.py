@@ -4,7 +4,7 @@ from database import Base
 
 class Student(Base):
     __tablename__ = 'students'
-    email = Column(String, primary_key=True, index=True)  # email is now the unique ID
+    email = Column(String, primary_key=True, index=True, nullable=False)  # email is now the unique ID
     first_name = Column(String)
     last_name = Column(String)
     student_number = Column(String, nullable=True)  # optional or legacy field
