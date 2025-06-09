@@ -51,38 +51,35 @@ async def upload_file(request: Request, file: UploadFile = File(...), db: Sessio
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
+    print("DEBUG: File received:", file.filename)
+
     csv_io = io.StringIO(contents.decode("utf-8"))
-
     df = pd.read_csv(csv_io, header=0)
+    print("DEBUG: CSV shape:", df.shape)
 
-    # Force rename first three columns
+    # Rename first 3 columns
     new_cols = ['last_name', 'first_name', 'email'] + list(df.columns[3:])
     df.columns = new_cols
+    print("DEBUG: Renamed columns:", df.columns.tolist())
 
     required_columns = {'last_name', 'first_name', 'email'}
     if not required_columns.issubset(df.columns):
+        print("DEBUG: Missing required columns")
         return {"error": f"Missing required columns: {required_columns}"}
 
-    # Process Date row (row 1) for assignments dates
-    if len(df) > 1:
-        date_row = df.iloc[1]
-    else:
-        date_row = None
-
-    # Process Points row (row 2) for max points
-    if len(df) > 2:
-        points_row = df.iloc[2]
-    else:
-        points_row = None
-
-    # Actual student data from row 3 onwards
+    date_row = df.iloc[1] if len(df) > 1 else None
+    points_row = df.iloc[2] if len(df) > 2 else None
     student_df = df.iloc[3:].reset_index(drop=True)
+
+    print("DEBUG: Processing", len(student_df), "students")
 
     for index, row in student_df.iterrows():
         email = str(row['email']).strip().lower()
-
         if not email:
-            continue  # skip rows without email
+            print(f"DEBUG: Skipping row {index} with no email")
+            continue
+
+        print(f"DEBUG: Processing student {email}")
 
         student = db.query(Student).filter_by(email=email).first()
         if student:
@@ -101,7 +98,6 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
             if pd.isna(score):
                 continue
 
-            # Parse date from date_row if available and valid
             assignment_date = None
             if date_row is not None:
                 date_val = date_row.get(col, None)
@@ -111,7 +107,6 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
                     except Exception:
                         assignment_date = None
 
-            # Parse max points from points_row if available
             max_points = 100.0
             if points_row is not None:
                 max_val = points_row.get(col, None)
@@ -143,7 +138,9 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
                 db.add(grade)
 
     db.commit()
+    print("DEBUG: Upload committed to DB.")
     return {"status": "Upload processed successfully"}
+
 
 @app.get("/view-students")
 def view_students(db: Session = Depends(get_db)):
