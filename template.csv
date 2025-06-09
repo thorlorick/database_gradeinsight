@@ -1,6 +1,6 @@
-last_name,first_name,student_number,Math Test,Essay 1,Science Lab
--, -, -,2025-06-01,2025-06-03,2025-06-05
--, -, -,100,100,100
-Smith,Alice,1001,85,90,78
-Johnson,Bob,1002,88,92,81
-Brown,Charlie,1003,92,85,89
+last_name,first_name,email,Math Test,Essay 1,Science Lab
+-,-,-,2025-06-01,2025-06-03,2025-06-05
+-,-,-,100,100,100
+Smith,Alice,alice.smith@example.com,85,90,78
+Johnson,Bob,bob.johnson@example.com,88,92,81
+Brown,Charlie,charlie.brown@example.com,92,85,89
