@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from database import Base, engine, SessionLocal
 from models import Student, Assignment, Grade
 from datetime import datetime
+from sqlalchemy import and_
 
 app = FastAPI()
 
@@ -114,6 +115,9 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                             assignment_date = None
                         else:
                             assignment_date = parsed_date.date()
+                            # Convert 1970-01-01 to None explicitly
+                            if assignment_date == datetime(1970, 1, 1).date():
+                                assignment_date = None
                     except Exception:
                         assignment_date = None
 
@@ -126,21 +130,26 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                     except Exception:
                         max_points = 100.0
 
-            assignment = (
-                db.query(Assignment)
-                .filter_by(name=col, date=assignment_date)
-                .first()
-            )
+            # Query assignment with proper null handling for date
+            if assignment_date is None:
+                assignment = db.query(Assignment).filter(
+                    and_(
+                        Assignment.name == col,
+                        Assignment.date.is_(None)
+                    )
+                ).first()
+            else:
+                assignment = db.query(Assignment).filter_by(
+                    name=col,
+                    date=assignment_date
+                ).first()
+
             if not assignment:
                 assignment = Assignment(name=col, date=assignment_date, max_points=max_points)
                 db.add(assignment)
                 db.flush()
 
-            grade = (
-                db.query(Grade)
-                .filter_by(email=email, assignment_id=assignment.id)
-                .first()
-            )
+            grade = db.query(Grade).filter_by(email=email, assignment_id=assignment.id).first()
             if grade:
                 grade.score = float(score)
             else:
