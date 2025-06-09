@@ -37,19 +37,29 @@ def download_template():
     else:
         return {"error": "Template file not found."}
 
+from fastapi import Request
+from fastapi.responses import HTMLResponse
+import io
+
 @app.get("/upload", response_class=HTMLResponse)
-def upload_form(request: Request):
-    return templates.TemplateResponse("upload.html", {"request": request})
+async def upload_form():
+    return """
+    <html>
+        <head>
+            <title>Upload CSV</title>
+        </head>
+        <body>
+            <h1>Upload CSV File</h1>
+            <form action="/upload" enctype="multipart/form-data" method="post">
+                <input name="file" type="file">
+                <input type="submit">
+            </form>
+        </body>
+    </html>
+    """
 
-@app.post("/upload", response_class=HTMLResponse)
-async def upload_file(request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)):
-    contents = await file.read()
-    with open("temp_upload.csv", "wb") as f:
-        f.write(contents)
-    return templates.TemplateResponse("upload_success.html", {"request": request, "filename": file.filename})
-
-@app.post("/upload-csv")
-async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
+@app.post("/upload")
+async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
     print("DEBUG: File received:", file.filename)
 
@@ -64,7 +74,6 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
     required_columns = {'last_name', 'first_name', 'email'}
     if not required_columns.issubset(df.columns):
-        print("DEBUG: Missing required columns")
         return {"error": f"Missing required columns: {required_columns}"}
 
     date_row = df.iloc[1] if len(df) > 1 else None
@@ -139,7 +148,8 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
     db.commit()
     print("DEBUG: Upload committed to DB.")
-    return {"status": "Upload processed successfully"}
+    return {"status": f"File {file.filename} uploaded and processed"}
+
 
 
 @app.get("/view-students")
