@@ -22,7 +22,7 @@ Base.metadata.create_all(bind=engine)
 def reset_db_get():
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
-    return {"status": "Database reset (GET)"
+    return {"status": "Database reset (GET)"}
 
 
 def get_db():
