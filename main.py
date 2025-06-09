@@ -95,6 +95,12 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
             if pd.isna(score):
                 continue  # skip empty grades
 
+            # Validate score range
+            if not (0 <= score <= 100):
+                return {
+                    "error": f"Invalid score {score} for assignment '{col}' for student '{student_number}'. Scores must be between 0 and 100."
+                }
+
             # Upsert assignment with max points
             assignment = db.query(Assignment).filter_by(name=col).first()
             if not assignment:
@@ -124,5 +130,6 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
     db.commit()
     return {"status": "Upload processed successfully"}
+
 
 
