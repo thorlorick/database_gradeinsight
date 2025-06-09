@@ -18,6 +18,13 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 Base.metadata.create_all(bind=engine)
 
+@app.post("/reset-db")
+def reset_db_endpoint():
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    return {"status": "Database reset"}
+
+
 def get_db():
     db = SessionLocal()
     try:
