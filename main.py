@@ -180,17 +180,10 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
     db.commit()
     return {"status": "Upload processed successfully"}
 
-@app.get("/view-students")
-def view_students(db: Session = Depends(get_db)):
+@app.get("/check-students")
+def check_students(db: Session = Depends(get_db)):
     students = db.query(Student).all()
-    result = []
-    for s in students:
-        result.append({
-            "email": s.email,
-            "first_name": s.first_name,
-            "last_name": s.last_name
-        })
-    return {"students": result}
+    return {"students": [{"email": s.email, "first_name": s.first_name, "last_name": s.last_name} for s in students]}
 
 # Optional: endpoint to reset DB - use with care
 @app.get("/reset-db-1122334455")
