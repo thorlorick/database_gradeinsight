@@ -9,16 +9,17 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from database import Base, engine, SessionLocal
 from models import Student, Assignment, Grade
+from datetime import datetime
 
 app = FastAPI()
 
 templates = Jinja2Templates(directory="templates")
-
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Create tables if they don't exist
 Base.metadata.create_all(bind=engine)
 
-
+# Dependency to get DB session
 def get_db():
     db = SessionLocal()
     try:
@@ -63,11 +64,13 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
     contents = await file.read()
     csv_io = io.StringIO(contents.decode("utf-8"))
 
+    # Read full CSV
     full_df = pd.read_csv(csv_io, header=0)
 
-    if len(full_df) < 4:
-        return {"error": "CSV must have at least 4 rows (header, date, max points, data)."}
+    if len(full_df) < 3:
+        return {"error": "CSV must have at least 3 rows (header, date, max points)."}
 
+    date_row = full_df.iloc[1]
     max_points_row = full_df.iloc[2]
     df = full_df.iloc[3:].reset_index(drop=True)
 
@@ -77,7 +80,10 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
     for _, row in df.iterrows():
         email = str(row["email"]).strip()
+        if not email:
+            continue
 
+        # UPSERT STUDENT
         student = db.query(Student).filter_by(email=email).first()
         if student:
             student.first_name = row["first_name"]
@@ -90,6 +96,7 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
             )
             db.add(student)
 
+        # UPSERT ASSIGNMENTS & GRADES
         for col in df.columns:
             if col in required_columns:
                 continue
@@ -98,63 +105,54 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
             if pd.isna(score):
                 continue
 
-            if not (0 <= score <= 100):
-                return {
-                    "error": f"Invalid score {score} for assignment '{col}' for student '{email}'. Scores must be 0-100."
-                }
+            try:
+                score = float(score)
+                if not (0 <= score <= 100):
+                    continue
+            except:
+                continue
 
-            assignment = db.query(Assignment).filter_by(name=col).first()
+            # Get max points
+            try:
+                max_point = float(max_points_row[col])
+            except (ValueError, KeyError):
+                max_point = 100.0
+
+            # Get optional date
+            date_str = str(date_row.get(col, "")).strip()
+            try:
+                date_obj = pd.to_datetime(date_str).date() if date_str else None
+            except:
+                date_obj = None
+
+            # Use assignment name + optional date to uniquely identify
+            assignment = db.query(Assignment).filter_by(name=col, date=date_obj).first()
             if not assignment:
-                try:
-                    max_point = float(max_points_row[col])
-                except (ValueError, KeyError):
-                    max_point = 100
-                assignment = Assignment(name=col, max_points=max_point)
+                assignment = Assignment(name=col, max_points=max_point, date=date_obj)
                 db.add(assignment)
                 db.flush()
 
-            grade = (
-                db.query(Grade)
-                .filter_by(email=email, assignment_id=assignment.id)
-                .first()
-            )
+            # UPSERT grade
+            grade = db.query(Grade).filter_by(email=email, assignment_id=assignment.id).first()
             if grade:
                 grade.score = score
             else:
-                grade = Grade(
-                    email=email,
-                    assignment_id=assignment.id,
-                    score=score,
-                )
+                grade = Grade(email=email, assignment_id=assignment.id, score=score)
                 db.add(grade)
 
     db.commit()
     return {"status": "Upload processed successfully"}
 
-
-@app.get("/view-data")
-def view_data(db: Session = Depends(get_db)):
-    data = []
+@app.get("/view-students")
+def view_students(db: Session = Depends(get_db)):
     students = db.query(Student).all()
+    return {"students": [s.email for s in students]}
 
-    for student in students:
-        student_data = {
-            "email": student.email,
-            "first_name": student.first_name,
-            "last_name": student.last_name,
-            "grades": []
-        }
+#@app.get("/reset-db")
+#def reset_db():
+ #   Base.metadata.drop_all(bind=engine)
+  #  Base.metadata.create_all(bind=engine)
+   # return {"status": "Database reset (GET)"}
 
-        for grade in student.grades:
-            assignment = db.query(Assignment).filter_by(id=grade.assignment_id).first()
-            student_data["grades"].append({
-                "assignment": assignment.name,
-                "date": assignment.date.isoformat() if assignment.date else None,
-                "score": grade.score,
-                "max_points": assignment.max_points
-            })
 
-        data.append(student_data)
-
-    return {"students": data}
 
