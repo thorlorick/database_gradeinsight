@@ -48,7 +48,17 @@ def read_root():
 @app.post("/upload-csv")
 async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
-    df = pd.read_csv(io.StringIO(contents.decode("utf-8")))
+    csv_io = io.StringIO(contents.decode("utf-8"))
+
+# Step 1: Read the entire CSV, no skipping
+full_df = pd.read_csv(csv_io, header=0)
+
+# Step 2: Extract max points from row 2 (index 1)
+max_points_row = full_df.iloc[1]  # second row, as a Series
+
+# Step 3: Drop first 3 rows (header + date + max points) to get student data
+df = full_df.iloc[2:].reset_index(drop=True)
+
 
     # Validate column presence
     required_columns = {"student_number", "first_name", "last_name", "email"}
@@ -85,8 +95,13 @@ async def upload_csv(file: UploadFile = File(...), db: Session = Depends(get_db)
 
             # Use default max_points and optional date logic
             assignment = db.query(Assignment).filter_by(name=col).first()
-            if not assignment:
-                assignment = Assignment(name=col, max_points=100)  # default
+if not assignment:
+    try:
+        max_point = float(max_points_row[col])
+    except (ValueError, KeyError):
+        max_point = 100  # fallback
+    assignment = Assignment(name=col, max_points=max_point)
+
                 db.add(assignment)
                 db.flush()  # get assignment.id
 
