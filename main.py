@@ -37,10 +37,6 @@ def download_template():
     else:
         return {"error": "Template file not found."}
 
-from fastapi import Request
-from fastapi.responses import HTMLResponse
-import io
-
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_form():
     return """
@@ -107,12 +103,17 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             if pd.isna(score):
                 continue
 
+            # Handle date with possible missing/invalid values
             assignment_date = None
             if date_row is not None:
                 date_val = date_row.get(col, None)
                 if pd.notna(date_val):
                     try:
-                        assignment_date = pd.to_datetime(date_val).date()
+                        parsed_date = pd.to_datetime(date_val, errors='coerce')
+                        if pd.isna(parsed_date):
+                            assignment_date = None
+                        else:
+                            assignment_date = parsed_date.date()
                     except Exception:
                         assignment_date = None
 
@@ -149,6 +150,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     db.commit()
     print("DEBUG: Upload committed to DB.")
     return {"status": f"File {file.filename} uploaded and processed"}
+
 
 
 
