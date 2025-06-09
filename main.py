@@ -1,17 +1,17 @@
 import io
+import os
+import models
+import pandas as pd
 from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.responses import FileResponse
-import pandas as pd
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-import os
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from database import Base, engine, SessionLocal
 from models import Student, Assignment, Grade
-import models
 
 
 app = FastAPI()
