@@ -188,3 +188,10 @@ def view_grades(db: Session = Depends(get_db)):
             "grades": grades_list,
         })
     return {"students": result}
+
+
+@app.get("/reset-db")
+def reset_db():
+    Base.metadata.drop_all(bind=engine)
+    Base.metadata.create_all(bind=engine)
+    return {"status": "Database reset (GET)"}
