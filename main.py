@@ -78,6 +78,14 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     student_df = df.iloc[3:].reset_index(drop=True)
 
     print("DEBUG: Processing", len(student_df), "students")
+    
+    # Debug: Print the points row to see what we're working with
+    if points_row is not None:
+        print("DEBUG: Points row data:")
+        for col in df.columns[3:]:
+            print(f"  {col}: {points_row.get(col, 'N/A')}")
+    else:
+        print("DEBUG: No points row found in CSV")
 
     # Calculate threshold (30% of students)
     total_students = len(student_df)
@@ -154,11 +162,17 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             max_points = 100.0
             if points_row is not None:
                 max_val = points_row.get(col, None)
-                if pd.notna(max_val):
+                if pd.notna(max_val) and str(max_val).strip() != '':
                     try:
                         max_points = float(max_val)
-                    except Exception:
+                        print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
+                    except (ValueError, TypeError) as e:
+                        print(f"DEBUG: Could not convert max_val '{max_val}' to float for '{col}': {e}")
                         max_points = 100.0
+                else:
+                    print(f"DEBUG: No valid max points found for '{col}', using default 100.0")
+            else:
+                print(f"DEBUG: No points row found, using default 100.0 for '{col}'")
 
             # Query assignment with proper null handling for date
             if assignment_date is None:
@@ -232,72 +246,6 @@ def view_grades(db: Session = Depends(get_db)):
             "last_name": s.last_name,
             "grades": grades_list,
         })
-    return {"students": result}
-
-
-
-# Add these new routes to your main.py file (add them after your existing routes)
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def dashboard(request: Request):
-    """Main dashboard page"""
-    return templates.TemplateResponse("dashboard.html", {"request": request})
-
-@app.get("/students", response_class=HTMLResponse)
-async def students_page(request: Request):
-    """Students list page"""
-    return templates.TemplateResponse("students.html", {"request": request})
-
-@app.get("/api/grades-table")
-def get_grades_for_table(db: Session = Depends(get_db)):
-    """API endpoint to get grades formatted for table display"""
-    students = db.query(Student).all()
-    result = []
-    
-    for student in students:
-        grades_list = []
-        for grade in student.grades:
-            assignment = grade.assignment
-            grades_list.append({
-                "assignment": assignment.name,
-                "date": assignment.date.isoformat() if assignment.date else None,
-                "score": grade.score,
-                "max_points": assignment.max_points,
-            })
-        
-        result.append({
-            "email": student.email,
-            "first_name": student.first_name,
-            "last_name": student.last_name,
-            "grades": grades_list,
-        })
-    
-    return {"students": result}
-
-@app.get("/api/students")
-def get_students_list(db: Session = Depends(get_db)):
-    """API endpoint to get just the students list"""
-    students = db.query(Student).all()
-    result = []
-    
-    for student in students:
-        # Calculate some basic stats
-        total_grades = len(student.grades)
-        total_points = sum(grade.score for grade in student.grades)
-        max_possible = sum(grade.assignment.max_points for grade in student.grades)
-        
-        avg_percentage = (total_points / max_possible * 100) if max_possible > 0 else 0
-        
-        result.append({
-            "email": student.email,
-            "first_name": student.first_name,
-            "last_name": student.last_name,
-            "total_assignments": total_grades,
-            "total_points": total_points,
-            "max_possible": max_possible,
-            "average_percentage": round(avg_percentage, 1)
-        })
-    
     return {"students": result}
 
 
