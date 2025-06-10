@@ -128,17 +128,20 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         print("DEBUG: Processing", len(student_df), "students")
 
         # Debug points row
-        if points_row is not None:
-            print("DEBUG: Points row (Row 3, index 2):")
-            for i, col in enumerate(df.columns[3:], 3):
-                try:
-                    val = points_row.iloc[i] if i < len(points_row) else 'N/A'
-                    if pd.isna(val) or str(val).strip() == '':
-                        print(f"  {col}: BLANK (will use default 100.0)")
-                    else:
-                        print(f"  {col}: '{val}' (type: {type(val)})")
-                except Exception as e:
-                    print(f"  {col}: ERROR accessing - {e}")
+    if points_row is not None:
+    points_row_index = df[df.iloc[:, 0] == 'Points'].index[0]  # Get actual row index
+    print(f"DEBUG: Points row (Row {points_row_index + 1}, index {points_row_index}):")
+    
+    assignment_columns = df.columns[3:]  # Assignment columns start at index 3
+    for col_idx, col in enumerate(assignment_columns):
+        try:
+            val = points_row.iloc[3 + col_idx]  # Access correct column in points_row
+            if pd.isna(val) or str(val).strip() == '':
+                print(f"  {col}: BLANK (will use default 100.0)")
+            else:
+                print(f"  {col}: '{val}' (type: {type(val)})")
+        except Exception as e:
+            print(f"  {col}: ERROR accessing - {e}")
 
         total_students = len(student_df)
         threshold = max(1, int(total_students * 0.3))
