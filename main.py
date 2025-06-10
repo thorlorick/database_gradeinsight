@@ -79,6 +79,35 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     print("DEBUG: Processing", len(student_df), "students")
 
+    # Calculate threshold (30% of students)
+    total_students = len(student_df)
+    threshold = max(1, int(total_students * 0.3))  # At least 1 student, or 30%
+    print(f"DEBUG: Total students: {total_students}, Threshold: {threshold}")
+
+    # Check each assignment column for data sufficiency
+    valid_assignments = []
+    skipped_assignments = []
+    
+    for col in student_df.columns[3:]:  # Skip first 3 columns (name, email)
+        # Count non-null, non-empty values in this assignment column
+        non_empty_count = student_df[col].notna().sum()
+        
+        if non_empty_count >= threshold:
+            valid_assignments.append(col)
+            print(f"DEBUG: Assignment '{col}' has {non_empty_count} entries - VALID")
+        else:
+            skipped_assignments.append(col)
+            print(f"DEBUG: Assignment '{col}' has {non_empty_count} entries - SKIPPED (below threshold)")
+
+    if not valid_assignments:
+        return {
+            "error": "No assignments meet the 30% threshold requirement",
+            "total_students": total_students,
+            "threshold": threshold,
+            "skipped_assignments": skipped_assignments
+        }
+
+    # Process students
     for index, row in student_df.iterrows():
         email = str(row['email']).strip().lower()
         if not email:
@@ -99,7 +128,8 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             )
             db.add(student)
 
-        for col in student_df.columns[3:]:
+        # Only process valid assignments
+        for col in valid_assignments:
             score = row[col]
             if pd.isna(score):
                 continue
@@ -158,9 +188,15 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     db.commit()
     print("DEBUG: Upload committed to DB.")
-    return {"status": f"File {file.filename} uploaded and processed"}
-
-
+    
+    return {
+        "status": f"File {file.filename} uploaded and processed",
+        "total_students": total_students,
+        "threshold": threshold,
+        "valid_assignments": valid_assignments,
+        "skipped_assignments": skipped_assignments,
+        "processed_assignments": len(valid_assignments)
+    }
 
 
 @app.get("/view-students")
@@ -201,6 +237,10 @@ def view_grades(db: Session = Depends(get_db)):
 
 @app.get("/reset-db")
 def reset_db():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-    return {"status": "Database reset (GET)"}
+    db = SessionLocal()
+    try:
+        Base.metadata.drop_all(bind=engine)
+        Base.metadata.create_all(bind=engine)
+        return {"status": "Database reset (GET)"}
+    finally:
+        db.close()
