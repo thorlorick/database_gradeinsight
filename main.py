@@ -63,8 +63,14 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     csv_io = io.StringIO(contents.decode("utf-8"))
     df = pd.read_csv(csv_io, header=0)
     print("DEBUG: CSV shape:", df.shape)
+    
+    date_row = df.iloc[1] if len(df) > 1 else None
+    points_row = df.iloc[2] if len(df) > 2 else None
+    student_df = df.iloc[3:].reset_index(drop=True)
 
-    # Rename first 3 columns
+    print("DEBUG: Processing", len(student_df), "students")
+
+        # Rename first 3 columns
     new_cols = ['last_name', 'first_name', 'email'] + list(df.columns[3:])
     df.columns = new_cols
     print("DEBUG: Renamed columns:", df.columns.tolist())
@@ -77,12 +83,6 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     print("DEBUG: CSV first 5 rows:")
     for i in range(min(5, len(df))):
         print(f"  Row {i}: {df.iloc[i].to_dict()}")
-    
-    date_row = df.iloc[1] if len(df) > 1 else None
-    points_row = df.iloc[2] if len(df) > 2 else None
-    student_df = df.iloc[3:].reset_index(drop=True)
-
-    print("DEBUG: Processing", len(student_df), "students")
     
     # Debug: Print the points row to see what we're working with
     if points_row is not None:
