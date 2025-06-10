@@ -69,7 +69,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     points_row = df.iloc[2] if len(df) > 2 else None  # This is D3 - correct!
     
     # Start student data from row 4 (index 3), not row 3
-    student_df = df.iloc[3:].reset_index(drop=True)  # Changed from iloc[2:] to iloc[3:]
+    student_df = df.iloc[2:].reset_index(drop=True)  # Changed from iloc[2:] to iloc[3:]
 
     # Rename columns properly
     if len(student_df.columns) < 3:
