@@ -248,6 +248,70 @@ def view_grades(db: Session = Depends(get_db)):
         })
     return {"students": result}
 
+# Add these new routes to your main.py file (add them after your existing routes)
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard(request: Request):
+    """Main dashboard page"""
+    return templates.TemplateResponse("dashboard.html", {"request": request})
+
+@app.get("/students", response_class=HTMLResponse)
+async def students_page(request: Request):
+    """Students list page"""
+    return templates.TemplateResponse("students.html", {"request": request})
+
+@app.get("/api/grades-table")
+def get_grades_for_table(db: Session = Depends(get_db)):
+    """API endpoint to get grades formatted for table display"""
+    students = db.query(Student).all()
+    result = []
+    
+    for student in students:
+        grades_list = []
+        for grade in student.grades:
+            assignment = grade.assignment
+            grades_list.append({
+                "assignment": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "score": grade.score,
+                "max_points": assignment.max_points,
+            })
+        
+        result.append({
+            "email": student.email,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grades": grades_list,
+        })
+    
+    return {"students": result}
+
+@app.get("/api/students")
+def get_students_list(db: Session = Depends(get_db)):
+    """API endpoint to get just the students list"""
+    students = db.query(Student).all()
+    result = []
+    
+    for student in students:
+        # Calculate some basic stats
+        total_grades = len(student.grades)
+        total_points = sum(grade.score for grade in student.grades)
+        max_possible = sum(grade.assignment.max_points for grade in student.grades)
+        
+        avg_percentage = (total_points / max_possible * 100) if max_possible > 0 else 0
+        
+        result.append({
+            "email": student.email,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "total_assignments": total_grades,
+            "total_points": total_points,
+            "max_possible": max_possible,
+            "average_percentage": round(avg_percentage, 1)
+        })
+    
+    return {"students": result}
+
 
 @app.get("/reset-db")
 def reset_db():
