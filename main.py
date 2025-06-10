@@ -73,6 +73,11 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     if not required_columns.issubset(df.columns):
         return {"error": f"Missing required columns: {required_columns}"}
 
+    # Debug: Show the first few rows to understand CSV structure
+    print("DEBUG: CSV first 5 rows:")
+    for i in range(min(5, len(df))):
+        print(f"  Row {i}: {df.iloc[i].to_dict()}")
+    
     date_row = df.iloc[1] if len(df) > 1 else None
     points_row = df.iloc[2] if len(df) > 2 else None
     student_df = df.iloc[3:].reset_index(drop=True)
@@ -81,9 +86,10 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     
     # Debug: Print the points row to see what we're working with
     if points_row is not None:
-        print("DEBUG: Points row data:")
+        print("DEBUG: Points row (Row 3, index 2) data:")
         for col in df.columns[3:]:
-            print(f"  {col}: {points_row.get(col, 'N/A')}")
+            val = points_row.get(col, 'N/A')
+            print(f"  {col}: '{val}' (type: {type(val)})")
     else:
         print("DEBUG: No points row found in CSV")
 
@@ -162,15 +168,25 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             max_points = 100.0
             if points_row is not None:
                 max_val = points_row.get(col, None)
+                print(f"DEBUG: Raw max_val for '{col}': '{max_val}' (type: {type(max_val)})")
+                
                 if pd.notna(max_val) and str(max_val).strip() != '':
                     try:
-                        max_points = float(max_val)
-                        print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
+                        # Convert to string first, then to float to handle any data type
+                        max_val_str = str(max_val).strip()
+                        
+                        # Check if it looks like a valid number (not a name or text)
+                        if max_val_str.replace('.', '').replace('-', '').isdigit():
+                            max_points = float(max_val_str)
+                            print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
+                        else:
+                            print(f"DEBUG: '{max_val_str}' doesn't look like a number for '{col}', using default 100.0")
+                            max_points = 100.0
                     except (ValueError, TypeError) as e:
                         print(f"DEBUG: Could not convert max_val '{max_val}' to float for '{col}': {e}")
                         max_points = 100.0
                 else:
-                    print(f"DEBUG: No valid max points found for '{col}', using default 100.0")
+                    print(f"DEBUG: No valid max points found for '{col}' (value was None/NaN/empty), using default 100.0")
             else:
                 print(f"DEBUG: No points row found, using default 100.0 for '{col}'")
 
