@@ -134,10 +134,13 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             col_mapping[assignment_col] = original_col
             print(f"DEBUG: Mapping '{assignment_col}' -> '{original_col}'")
 
+    processed_students = 0
+
     for index, row in student_df.iterrows():
         email = str(row['email']).strip().lower()
         if not email:
             continue
+            processed_students += 1
 
         student = db.query(Student).filter_by(email=email).first()
         if student:
@@ -208,13 +211,14 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     print("DEBUG: Upload committed to DB.")
 
     return {
-        "status": f"File {file.filename} uploaded and processed",
-        "total_students": total_students,
-        "threshold": threshold,
-        "valid_assignments": valid_assignments,
-        "skipped_assignments": skipped_assignments,  # Fixed typo
-        "processed_assignments": len(valid_assignments)
-    }
+    "status": f"File {file.filename} uploaded and processed",
+    "total_students": total_students,
+    "processed_students": processed_students,
+    "threshold": threshold,
+    "valid_assignments": valid_assignments,
+    "skipped_assignments": skipped_assignments,
+    "processed_assignments": len(valid_assignments)
+}
     
 
 @app.get("/view-students")
