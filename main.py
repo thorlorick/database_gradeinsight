@@ -69,13 +69,13 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     points_row = df.iloc[2] if len(df) > 2 else None  # This is D3 - correct!
     
     # Start student data from row 4 (index 3), not row 3
-    student_df = df.iloc[2:].reset_index(drop=True)  # Changed from iloc[2:] to iloc[3:]
+    student_df = df.iloc[3:].reset_index(drop=True)  # Changed from iloc[2:] to iloc[3:]
 
     # Rename columns properly
     if len(student_df.columns) < 3:
         return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
 
-    new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[2:]]
+    new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[3:]]
     student_df.columns = new_cols[:len(student_df.columns)]  # Ensure same length
 
     print("DEBUG: Renamed columns:", student_df.columns.tolist())
@@ -92,10 +92,16 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     if points_row is not None:
         print("DEBUG: Points row (Row 3, index 2) data:")
+        print("DEBUG: B3 and C3 are expected to be blank (metadata row)")
+        print("DEBUG: Assignment columns may also be blank if no specific points are set")
         # Use original column names from df, not renamed ones from student_df
+        # Skip first 3 columns (A, B, C) as they're expected to be blank in metadata rows
         for col in df.columns[3:]:
             val = points_row.get(col, 'N/A') if hasattr(points_row, 'get') else points_row[col] if col in points_row.index else 'N/A'
-            print(f"  {col}: '{val}' (type: {type(val)})")
+            if pd.isna(val) or str(val).strip() == '':
+                print(f"  {col}: BLANK (will use default 100.0 points)")
+            else:
+                print(f"  {col}: '{val}' (type: {type(val)})")
     else:
         print("DEBUG: No points row found in CSV")
 
@@ -160,28 +166,36 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
             assignment_date = None
             if date_row is not None:
+                # Only look for dates in assignment columns (skip A, B, C columns)
                 date_val = date_row.get(original_col, None) if hasattr(date_row, 'get') else date_row[original_col] if original_col in date_row.index else None
-                if pd.notna(date_val):
+                if pd.notna(date_val) and str(date_val).strip() != '':
                     try:
                         parsed_date = pd.to_datetime(date_val, errors='coerce')
                         if pd.notna(parsed_date):
                             assignment_date = parsed_date.date()
                             if assignment_date == datetime(1970, 1, 1).date():
                                 assignment_date = None
-                    except Exception:
+                        else:
+                            print(f"DEBUG: Could not parse date '{date_val}' for assignment '{col}'")
+                    except Exception as e:
+                        print(f"DEBUG: Date parsing error for '{col}': {e}")
                         assignment_date = None
+                else:
+                    print(f"DEBUG: No date found for assignment '{col}' - will be stored without date")
 
-            max_points = 100.0
+            max_points = 100.0  # Default value
             if points_row is not None:
+                # Only look for points in assignment columns (skip A, B, C columns)
                 max_val = points_row.get(original_col, None) if hasattr(points_row, 'get') else points_row[original_col] if original_col in points_row.index else None
                 if pd.notna(max_val) and str(max_val).strip() != '':
                     try:
                         max_points = float(max_val)
                         print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
                     except (ValueError, TypeError) as e:
-                        print(f"DEBUG: Could not convert max_val '{max_val}' to float for '{col}': {e}")
+                        print(f"DEBUG: Could not convert max_val '{max_val}' to float for '{col}': {e}. Using default 100.0")
+                        max_points = 100.0
                 else:
-                    print(f"DEBUG: No valid max points found for '{col}', using default 100.0")
+                    print(f"DEBUG: No max points specified for '{col}', using default 100.0")
             else:
                 print(f"DEBUG: No points row found, using default 100.0 for '{col}'")
 
