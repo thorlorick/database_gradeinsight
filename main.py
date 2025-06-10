@@ -168,25 +168,15 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             max_points = 100.0
             if points_row is not None:
                 max_val = points_row.get(col, None)
-                print(f"DEBUG: Raw max_val for '{col}': '{max_val}' (type: {type(max_val)})")
-                
                 if pd.notna(max_val) and str(max_val).strip() != '':
                     try:
-                        # Convert to string first, then to float to handle any data type
-                        max_val_str = str(max_val).strip()
-                        
-                        # Check if it looks like a valid number (not a name or text)
-                        if max_val_str.replace('.', '').replace('-', '').isdigit():
-                            max_points = float(max_val_str)
-                            print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
-                        else:
-                            print(f"DEBUG: '{max_val_str}' doesn't look like a number for '{col}', using default 100.0")
-                            max_points = 100.0
+                        max_points = float(max_val)
+                        print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
                     except (ValueError, TypeError) as e:
                         print(f"DEBUG: Could not convert max_val '{max_val}' to float for '{col}': {e}")
                         max_points = 100.0
                 else:
-                    print(f"DEBUG: No valid max points found for '{col}' (value was None/NaN/empty), using default 100.0")
+                    print(f"DEBUG: No valid max points found for '{col}', using default 100.0")
             else:
                 print(f"DEBUG: No points row found, using default 100.0 for '{col}'")
 
@@ -263,6 +253,7 @@ def view_grades(db: Session = Depends(get_db)):
             "grades": grades_list,
         })
     return {"students": result}
+
 
 # Add these new routes to your main.py file (add them after your existing routes)
 
