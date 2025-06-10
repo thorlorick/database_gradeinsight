@@ -93,7 +93,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     if points_row is not None:
         print("DEBUG: Points row (Row 3, index 2) data:")
         # Use original column names from df, not renamed ones from student_df
-        for col in df.columns[2:]:
+        for col in df.columns[3:]:
             val = points_row.get(col, 'N/A') if hasattr(points_row, 'get') else points_row[col] if col in points_row.index else 'N/A'
             print(f"  {col}: '{val}' (type: {type(val)})")
     else:
@@ -106,7 +106,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     valid_assignments = []
     skipped_assignments = []
 
-    for col in student_df.columns[2:]:
+    for col in student_df.columns[3:]:
         non_empty_count = student_df[col].notna().sum()
         if non_empty_count >= threshold:
             valid_assignments.append(col)
