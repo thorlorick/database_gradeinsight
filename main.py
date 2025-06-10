@@ -62,21 +62,21 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     csv_io = io.StringIO(contents.decode("utf-8"))
     df = pd.read_csv(csv_io, header=0)
+    
+    # Strip whitespace from headers
+    df.columns = [str(col).strip() for col in df.columns]
     print("DEBUG: CSV shape:", df.shape)
 
-    # Get reference rows BEFORE any modifications
     date_row = df.iloc[1] if len(df) > 1 else None
-    points_row = df.iloc[2] if len(df) > 2 else None  # This is D3 - correct!
-    
-    # Start student data from row 4 (index 3), not row 3
-    student_df = df.iloc[3:].reset_index(drop=True)  # Changed from iloc[2:] to iloc[3:]
+    points_row = df.iloc[2] if len(df) > 2 else None
+    student_df = df.iloc[3:].reset_index(drop=True)
 
-    # Rename columns properly
     if len(student_df.columns) < 3:
         return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
 
-    new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[3:]]
-    student_df.columns = new_cols[:len(student_df.columns)]  # Ensure same length
+    new_cols = ['last_name', 'first_name', 'email'] + [str(col).strip() for col in student_df.columns[3:]]
+    student_df.columns = new_cols[:len(student_df.columns)]
+    student_df.columns = [str(col).strip() for col in student_df.columns]
 
     print("DEBUG: Renamed columns:", student_df.columns.tolist())
 
@@ -84,17 +84,10 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     if not required_columns.issubset(student_df.columns):
         return {"error": f"Missing required columns: {required_columns}"}
 
-    print("DEBUG: CSV first 5 rows:")
-    for i in range(min(5, len(student_df))):
-        print(f"  Row {i}: {student_df.iloc[i].to_dict()}")
-
     print("DEBUG: Processing", len(student_df), "students")
 
     if points_row is not None:
         print("DEBUG: Points row (Row 3, index 2) data:")
-        print("DEBUG: B3 and C3 are expected to be blank (metadata row)")
-        # Use original column names from df, not renamed ones from student_df
-        # Skip first 3 columns (A, B, C) as they're expected to be blank in metadata rows
         for col in df.columns[3:]:
             val = points_row.get(col, 'N/A') if hasattr(points_row, 'get') else points_row[col] if col in points_row.index else 'N/A'
             print(f"  {col}: '{val}' (type: {type(val)})")
@@ -103,8 +96,6 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     total_students = len(student_df)
     threshold = max(1, int(total_students * 0.3))
-    print(f"DEBUG: Total students: {total_students}, Threshold: {threshold}")
-
     valid_assignments = []
     skipped_assignments = []
 
@@ -112,10 +103,8 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         non_empty_count = student_df[col].notna().sum()
         if non_empty_count >= threshold:
             valid_assignments.append(col)
-            print(f"DEBUG: Assignment '{col}' has {non_empty_count} entries - VALID")
         else:
             skipped_assignments.append(col)
-            print(f"DEBUG: Assignment '{col}' has {non_empty_count} entries - SKIPPED")
 
     if not valid_assignments:
         return {
@@ -125,44 +114,37 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             "skipped_assignments": skipped_assignments
         }
 
+    # Build column map (new -> original)
+    col_mapping = {}
+    for i, new_col in enumerate(student_df.columns[3:]):
+        if i + 3 < len(df.columns):
+            original_col = str(df.columns[i + 3]).strip()
+            col_mapping[new_col.strip()] = original_col
+
     for index, row in student_df.iterrows():
         email = str(row['email']).strip().lower()
         if not email:
-            print(f"DEBUG: Skipping row {index} with no email")
             continue
-
-        print(f"DEBUG: Processing student {email}")
 
         student = db.query(Student).filter_by(email=email).first()
         if student:
             student.first_name = row['first_name']
             student.last_name = row['last_name']
         else:
-            student = Student(
-                email=email,
-                first_name=row['first_name'],
-                last_name=row['last_name'],
-            )
+            student = Student(email=email, first_name=row['first_name'], last_name=row['last_name'])
             db.add(student)
-
-        # Create mapping between new column names (in student_df) and original column names (in df)
-        col_mapping = {}
-        for i, new_col in enumerate(student_df.columns[3:]):
-            if i + 3 < len(df.columns):
-                original_col = df.columns[i + 3]
-                col_mapping[new_col] = original_col
 
         for col in valid_assignments:
             score = row[col]
             if pd.isna(score):
                 continue
 
-            # Get original column name for looking up in points_row and date_row
-            original_col = col_mapping.get(col, col)
+            original_col = col_mapping.get(col.strip(), col.strip())
+            if original_col not in points_row.index:
+                print(f"WARNING: Column '{original_col}' not found in points_row")
 
             assignment_date = None
             if date_row is not None:
-                # Only look for dates in assignment columns (skip A, B, C columns)
                 date_val = date_row.get(original_col, None) if hasattr(date_row, 'get') else date_row[original_col] if original_col in date_row.index else None
                 if pd.notna(date_val) and str(date_val).strip() != '':
                     try:
@@ -176,31 +158,17 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
             max_points = 100.0
             if points_row is not None:
-                # Only look for points in assignment columns (skip A, B, C columns)
                 max_val = points_row.get(original_col, None) if hasattr(points_row, 'get') else points_row[original_col] if original_col in points_row.index else None
                 if pd.notna(max_val) and str(max_val).strip() != '':
                     try:
                         max_points = float(max_val)
-                        print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
-                    except (ValueError, TypeError) as e:
-                        print(f"DEBUG: Could not convert max_val '{max_val}' to float for '{col}': {e}")
-                else:
-                    print(f"DEBUG: No valid max points found for '{col}', using default 100.0")
-            else:
-                print(f"DEBUG: No points row found, using default 100.0 for '{col}'")
+                    except (ValueError, TypeError):
+                        pass
 
             if assignment_date is None:
-                assignment = db.query(Assignment).filter(
-                    and_(
-                        Assignment.name == col,
-                        Assignment.date.is_(None)
-                    )
-                ).first()
+                assignment = db.query(Assignment).filter(and_(Assignment.name == col, Assignment.date.is_(None))).first()
             else:
-                assignment = db.query(Assignment).filter_by(
-                    name=col,
-                    date=assignment_date
-                ).first()
+                assignment = db.query(Assignment).filter_by(name=col, date=assignment_date).first()
 
             if not assignment:
                 assignment = Assignment(name=col, date=assignment_date, max_points=max_points)
@@ -260,24 +228,18 @@ def view_grades(db: Session = Depends(get_db)):
         })
     return {"students": result}
 
-# Add these new routes to your main.py file (add them after your existing routes)
-
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    """Main dashboard page"""
     return templates.TemplateResponse("dashboard.html", {"request": request})
 
 @app.get("/students", response_class=HTMLResponse)
 async def students_page(request: Request):
-    """Students list page"""
     return templates.TemplateResponse("students.html", {"request": request})
 
 @app.get("/api/grades-table")
 def get_grades_for_table(db: Session = Depends(get_db)):
-    """API endpoint to get grades formatted for table display"""
     students = db.query(Student).all()
     result = []
-    
     for student in students:
         grades_list = []
         for grade in student.grades:
@@ -288,30 +250,23 @@ def get_grades_for_table(db: Session = Depends(get_db)):
                 "max_points": assignment.max_points,
                 "score": grade.score,
             })
-        
         result.append({
             "email": student.email,
             "first_name": student.first_name,
             "last_name": student.last_name,
             "grades": grades_list,
         })
-    
     return {"students": result}
 
 @app.get("/api/students")
 def get_students_list(db: Session = Depends(get_db)):
-    """API endpoint to get just the students list"""
     students = db.query(Student).all()
     result = []
-    
     for student in students:
-        # Calculate some basic stats
         total_grades = len(student.grades)
         total_points = sum(grade.score for grade in student.grades)
         max_possible = sum(grade.assignment.max_points for grade in student.grades)
-        
         avg_percentage = (total_points / max_possible * 100) if max_possible > 0 else 0
-        
         result.append({
             "email": student.email,
             "first_name": student.first_name,
@@ -321,9 +276,7 @@ def get_students_list(db: Session = Depends(get_db)):
             "max_possible": max_possible,
             "average_percentage": round(avg_percentage, 1)
         })
-    
     return {"students": result}
-
 
 @app.get("/reset-db")
 def reset_db():
