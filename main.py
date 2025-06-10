@@ -38,6 +38,23 @@ def download_template():
     else:
         return {"error": "Template file not found."}
 
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_form():
+    return """
+    <html>
+        <head>
+            <title>Upload CSV</title>
+        </head>
+        <body>
+            <h1>Upload CSV File</h1>
+            <form action="/upload" enctype="multipart/form-data" method="post">
+                <input name="file" type="file">
+                <input type="submit">
+            </form>
+        </body>
+    </html>
+    """
+
 @app.post("/upload")
 async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
