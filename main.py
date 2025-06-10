@@ -78,15 +78,15 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     for i in range(min(5, len(df))):
         print(f"  Row {i}: {df.iloc[i].to_dict()}")
     
-    date_row = df.iloc[0] if len(df) > 1 else None
-    points_row = df.iloc[1] if len(df) > 2 else None
-    student_df = df.iloc[2:].reset_index(drop=True)
+    date_row = df.iloc[1] if len(df) > 1 else None
+    points_row = df.iloc[2] if len(df) > 2 else None
+    student_df = df.iloc[3:].reset_index(drop=True)
 
     print("DEBUG: Processing", len(student_df), "students")
     
     # Debug: Print the points row to see what we're working with
     if points_row is not None:
-        print("DEBUG: Points row (Row 3, index 2) data:")
+        print("DEBUG: Points row (Row 2, index 2) data:")
         for col in df.columns[3:]:
             val = points_row.get(col, 'N/A')
             print(f"  {col}: '{val}' (type: {type(val)})")
