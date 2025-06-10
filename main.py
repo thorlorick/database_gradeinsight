@@ -70,11 +70,11 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     student_df = df.iloc[2:].reset_index(drop=True)
 
     # Rename columns properly
-if len(student_df.columns) < 3:
-    return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
+    if len(student_df.columns) < 3:
+        return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
 
-new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[3:]]
-student_df.columns = new_cols[:len(student_df.columns)]  # Ensure same length
+    new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[3:]]
+    student_df.columns = new_cols[:len(student_df.columns)]  # Ensure same length
 
     print("DEBUG: Renamed columns:", student_df.columns.tolist())
 
