@@ -63,28 +63,27 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     csv_io = io.StringIO(contents.decode("utf-8"))
     df = pd.read_csv(csv_io, header=0)
     print("DEBUG: CSV shape:", df.shape)
-    
+
+    # Get reference rows before renaming
     date_row = df.iloc[1] if len(df) > 1 else None
     points_row = df.iloc[2] if len(df) > 2 else None
     student_df = df.iloc[3:].reset_index(drop=True)
 
-    print("DEBUG: Processing", len(student_df), "students")
-
-        # Rename first 3 columns
+    # Rename columns only after slicing student data
     new_cols = ['last_name', 'first_name', 'email'] + list(df.columns[3:])
-    df.columns = new_cols
-    print("DEBUG: Renamed columns:", df.columns.tolist())
+    student_df.columns = new_cols
+    print("DEBUG: Renamed columns:", student_df.columns.tolist())
 
     required_columns = {'last_name', 'first_name', 'email'}
-    if not required_columns.issubset(df.columns):
+    if not required_columns.issubset(student_df.columns):
         return {"error": f"Missing required columns: {required_columns}"}
 
-    # Debug: Show the first few rows to understand CSV structure
     print("DEBUG: CSV first 5 rows:")
-    for i in range(min(5, len(df))):
-        print(f"  Row {i}: {df.iloc[i].to_dict()}")
-    
-    # Debug: Print the points row to see what we're working with
+    for i in range(min(5, len(student_df))):
+        print(f"  Row {i}: {student_df.iloc[i].to_dict()}")
+
+    print("DEBUG: Processing", len(student_df), "students")
+
     if points_row is not None:
         print("DEBUG: Points row (Row 3, index 2) data:")
         for col in df.columns[3:]:
@@ -93,25 +92,21 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     else:
         print("DEBUG: No points row found in CSV")
 
-    # Calculate threshold (30% of students)
     total_students = len(student_df)
-    threshold = max(1, int(total_students * 0.3))  # At least 1 student, or 30%
+    threshold = max(1, int(total_students * 0.3))
     print(f"DEBUG: Total students: {total_students}, Threshold: {threshold}")
 
-    # Check each assignment column for data sufficiency
     valid_assignments = []
     skipped_assignments = []
-    
-    for col in student_df.columns[3:]:  # Skip first 3 columns (name, email)
-        # Count non-null, non-empty values in this assignment column
+
+    for col in student_df.columns[3:]:
         non_empty_count = student_df[col].notna().sum()
-        
         if non_empty_count >= threshold:
             valid_assignments.append(col)
             print(f"DEBUG: Assignment '{col}' has {non_empty_count} entries - VALID")
         else:
             skipped_assignments.append(col)
-            print(f"DEBUG: Assignment '{col}' has {non_empty_count} entries - SKIPPED (below threshold)")
+            print(f"DEBUG: Assignment '{col}' has {non_empty_count} entries - SKIPPED")
 
     if not valid_assignments:
         return {
@@ -121,7 +116,6 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             "skipped_assignments": skipped_assignments
         }
 
-    # Process students
     for index, row in student_df.iterrows():
         email = str(row['email']).strip().lower()
         if not email:
@@ -142,24 +136,19 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             )
             db.add(student)
 
-        # Only process valid assignments
         for col in valid_assignments:
             score = row[col]
             if pd.isna(score):
                 continue
 
-            # Handle date with possible missing/invalid values
             assignment_date = None
             if date_row is not None:
                 date_val = date_row.get(col, None)
                 if pd.notna(date_val):
                     try:
                         parsed_date = pd.to_datetime(date_val, errors='coerce')
-                        if pd.isna(parsed_date):
-                            assignment_date = None
-                        else:
+                        if pd.notna(parsed_date):
                             assignment_date = parsed_date.date()
-                            # Convert 1970-01-01 to None explicitly
                             if assignment_date == datetime(1970, 1, 1).date():
                                 assignment_date = None
                     except Exception:
@@ -174,13 +163,11 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                         print(f"DEBUG: Assignment '{col}' max points set to: {max_points}")
                     except (ValueError, TypeError) as e:
                         print(f"DEBUG: Could not convert max_val '{max_val}' to float for '{col}': {e}")
-                        max_points = 100.0
                 else:
                     print(f"DEBUG: No valid max points found for '{col}', using default 100.0")
             else:
                 print(f"DEBUG: No points row found, using default 100.0 for '{col}'")
 
-            # Query assignment with proper null handling for date
             if assignment_date is None:
                 assignment = db.query(Assignment).filter(
                     and_(
@@ -208,7 +195,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     db.commit()
     print("DEBUG: Upload committed to DB.")
-    
+
     return {
         "status": f"File {file.filename} uploaded and processed",
         "total_students": total_students,
@@ -217,7 +204,6 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         "skipped_assignments": skipped_assignments,
         "processed_assignments": len(valid_assignments)
     }
-
 
 @app.get("/view-students")
 def view_students(db: Session = Depends(get_db)):
@@ -230,7 +216,6 @@ def view_students(db: Session = Depends(get_db)):
             "last_name": s.last_name,
         })
     return {"students": result}
-
 
 @app.get("/view-grades")
 def view_grades(db: Session = Depends(get_db)):
@@ -253,7 +238,6 @@ def view_grades(db: Session = Depends(get_db)):
             "grades": grades_list,
         })
     return {"students": result}
-
 
 # Add these new routes to your main.py file (add them after your existing routes)
 
