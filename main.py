@@ -62,6 +62,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     csv_io = io.StringIO(contents.decode("utf-8"))
     df = pd.read_csv(csv_io, header=0)
+    print(df.head(5))
     
     # Strip whitespace from headers
     df.columns = [str(col).strip() for col in df.columns]
