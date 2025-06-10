@@ -64,10 +64,12 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     df = pd.read_csv(csv_io, header=0)
     print("DEBUG: CSV shape:", df.shape)
 
-    # Get reference rows before renaming
+    # Get reference rows BEFORE any modifications
     date_row = df.iloc[1] if len(df) > 1 else None
-    points_row = df.iloc[2] if len(df) > 2 else None
-    student_df = df.iloc[2:].reset_index(drop=True)
+    points_row = df.iloc[2] if len(df) > 2 else None  # This is D3 - correct!
+    
+    # Start student data from row 4 (index 3), not row 3
+    student_df = df.iloc[3:].reset_index(drop=True)  # Changed from iloc[2:] to iloc[3:]
 
     # Rename columns properly
     if len(student_df.columns) < 3:
@@ -90,8 +92,9 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     if points_row is not None:
         print("DEBUG: Points row (Row 3, index 2) data:")
+        # Use original column names from df, not renamed ones from student_df
         for col in df.columns[3:]:
-            val = points_row.get(col, 'N/A')
+            val = points_row.get(col, 'N/A') if hasattr(points_row, 'get') else points_row[col] if col in points_row.index else 'N/A'
             print(f"  {col}: '{val}' (type: {type(val)})")
     else:
         print("DEBUG: No points row found in CSV")
@@ -140,14 +143,24 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             )
             db.add(student)
 
+        # Create mapping between new column names (in student_df) and original column names (in df)
+        col_mapping = {}
+        for i, new_col in enumerate(student_df.columns[3:]):
+            if i + 3 < len(df.columns):
+                original_col = df.columns[i + 3]
+                col_mapping[new_col] = original_col
+
         for col in valid_assignments:
             score = row[col]
             if pd.isna(score):
                 continue
 
+            # Get original column name for looking up in points_row and date_row
+            original_col = col_mapping.get(col, col)
+
             assignment_date = None
             if date_row is not None:
-                date_val = date_row.get(col, None)
+                date_val = date_row.get(original_col, None) if hasattr(date_row, 'get') else date_row[original_col] if original_col in date_row.index else None
                 if pd.notna(date_val):
                     try:
                         parsed_date = pd.to_datetime(date_val, errors='coerce')
@@ -160,7 +173,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
             max_points = 100.0
             if points_row is not None:
-                max_val = points_row.get(col, None)
+                max_val = points_row.get(original_col, None) if hasattr(points_row, 'get') else points_row[original_col] if original_col in points_row.index else None
                 if pd.notna(max_val) and str(max_val).strip() != '':
                     try:
                         max_points = float(max_val)
@@ -205,7 +218,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         "total_students": total_students,
         "threshold": threshold,
         "valid_assignments": valid_assignments,
-        "skipped_assignments": skipped_assignments,
+        "skipped_assumptions": skipped_assignments,
         "processed_assignments": len(valid_assignments)
     }
 
