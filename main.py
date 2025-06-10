@@ -75,7 +75,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     if len(student_df.columns) < 3:
         return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
 
-    new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[3:]]
+    new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[2:]]
     student_df.columns = new_cols[:len(student_df.columns)]  # Ensure same length
 
     print("DEBUG: Renamed columns:", student_df.columns.tolist())
@@ -106,7 +106,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     valid_assignments = []
     skipped_assignments = []
 
-    for col in student_df.columns[3:]:
+    for col in student_df.columns[2:]:
         non_empty_count = student_df[col].notna().sum()
         if non_empty_count >= threshold:
             valid_assignments.append(col)
