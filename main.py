@@ -38,23 +38,6 @@ def download_template():
     else:
         return {"error": "Template file not found."}
 
-@app.get("/upload", response_class=HTMLResponse)
-async def upload_form():
-    return """
-    <html>
-        <head>
-            <title>Upload CSV</title>
-        </head>
-        <body>
-            <h1>Upload CSV File</h1>
-            <form action="/upload" enctype="multipart/form-data" method="post">
-                <input name="file" type="file">
-                <input type="submit">
-            </form>
-        </body>
-    </html>
-    """
-
 @app.post("/upload")
 async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
     contents = await file.read()
@@ -68,9 +51,10 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     print("DEBUG: CSV shape:", df.shape)
     print("DEBUG: Original columns:", df.columns.tolist())
 
+    # Row indices: 0=headers, 1=dates, 2=points, 3+=students
     date_row = df.iloc[1] if len(df) > 1 else None
-    points_row = df.iloc[2] if len(df) > 2 else None
-    student_df = df.iloc[3:].reset_index(drop=True)
+    points_row = df.iloc[2] if len(df) > 2 else None  # Row 3 (D3) - this is correct
+    student_df = df.iloc[3:].reset_index(drop=True)  # Row 4+ - this is correct
 
     if len(student_df.columns) < 3:
         return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
@@ -88,11 +72,12 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     print("DEBUG: Processing", len(student_df), "students")
 
     if points_row is not None:
-        print("DEBUG: Points row (Row 3, index 2) data:")
+        print("DEBUG: Points row (Row 3, index 2) - CORRECT ROW FOR MAX POINTS:")
         print("DEBUG: B3 and C3 are expected to be blank (metadata row)")
-        for col in df.columns[3:]:
+        for col in df.columns[3:]:  # Use original df columns, not student_df
             try:
-                val = points_row[col] if col in points_row.index else 'N/A'
+                # Access points_row using original column names from df
+                val = points_row.iloc[df.columns.get_loc(col)] if col in df.columns else 'N/A'
                 if pd.isna(val) or str(val).strip() == '':
                     print(f"  {col}: BLANK (will use default 100.0)")
                 else:
@@ -166,16 +151,23 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                     print(f"DEBUG: Date parsing error for '{col}': {e}")
 
             max_points = 100.0
-            if points_row is not None and original_col in points_row.index:
+            if points_row is not None:
                 try:
-                    max_val = points_row[original_col]
-                    if pd.notna(max_val) and str(max_val).strip() != '':
-                        max_points = float(max_val)
-                        print(f"DEBUG: Assignment '{col}' max points: {max_points}")
+                    # Access points_row using positional index matching original_col
+                    col_index = df.columns.get_loc(original_col) if original_col in df.columns else None
+                    if col_index is not None:
+                        max_val = points_row.iloc[col_index]
+                        if pd.notna(max_val) and str(max_val).strip() != '':
+                            max_points = float(max_val)
+                            print(f"DEBUG: Assignment '{col}' max points from Row 3: {max_points}")
+                        else:
+                            print(f"DEBUG: Row 3 blank for '{col}', using default 100.0")
                     else:
-                        print(f"DEBUG: No max points for '{col}', using default 100.0")
+                        print(f"DEBUG: Column '{original_col}' not found in df, using default 100.0")
                 except (ValueError, TypeError) as e:
-                    print(f"DEBUG: Could not parse max points for '{col}': {e}")
+                    print(f"DEBUG: Could not parse max points for '{col}' from Row 3: {e}")
+            else:
+                print(f"DEBUG: No points row found, using default 100.0 for '{col}'")
 
             if assignment_date is None:
                 assignment = db.query(Assignment).filter(and_(Assignment.name == col, Assignment.date.is_(None))).first()
