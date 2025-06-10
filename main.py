@@ -100,9 +100,9 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         if len(df) < 4:
             raise HTTPException(status_code=400, detail="CSV must have at least 4 rows")
 
-        date_row = df.iloc[1] if len(df) > 1 else None
-        points_row = df.iloc[2] if len(df) > 2 else None
-        student_df = df.iloc[3:].reset_index(drop=True)
+        date_row = df.iloc[0] if len(df) > 1 else None
+        points_row = df.iloc[1] if len(df) > 2 else None
+        student_df = df.iloc[2:].reset_index(drop=True)
 
         if len(student_df.columns) < 3:
             raise HTTPException(status_code=400, detail="CSV must have at least 3 columns")
