@@ -145,8 +145,17 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         valid_assignments = []
         skipped_assignments = []
 
+        # Debug: Show the points row values
+        if points_row is not None:
+            print("DEBUG: Points row values:")
+            for i, val in enumerate(points_row):
+                col_name = df.columns[i] if i < len(df.columns) else f"Column_{i}"
+                print(f"  Index {i} ({col_name}): '{val}' (type: {type(val)})")
+
         # Process assignments (skip first 3 columns: last_name, first_name, email)
         assignment_columns = student_df.columns[3:]  # Only assignment columns
+        print(f"DEBUG: Assignment columns to check: {list(assignment_columns)}")
+        
         for col in assignment_columns:
             # Get the original column index in the DataFrame
             original_col_index = list(df.columns).index(col) if col in df.columns else None
@@ -155,12 +164,16 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                 skipped_assignments.append(col)
                 continue
                 
+            print(f"DEBUG: Checking '{col}' at original index {original_col_index}")
+                
             # Check if max points in points_row is valid
             # Note: B3 and C3 (first_name, email columns) should be ignored for points check
             max_points_val = None
             try:
                 if points_row is not None and original_col_index < len(points_row):
                     max_points_val = points_row.iloc[original_col_index]
+                    print(f"DEBUG: '{col}' max_points_val from index {original_col_index}: '{max_points_val}' (type: {type(max_points_val)})")
+                    
                     if pd.isna(max_points_val) or str(max_points_val).strip() == '':
                         print(f"DEBUG: Skipping '{col}' - no max points specified (intentionally blank in row 3)")
                         skipped_assignments.append(col)
@@ -168,7 +181,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                     else:
                         print(f"DEBUG: '{col}' has max points: {max_points_val}")
                 else:
-                    print(f"DEBUG: Skipping '{col}' - points row not available")
+                    print(f"DEBUG: Skipping '{col}' - points row not available or index out of range")
                     skipped_assignments.append(col)
                     continue
             except Exception as e:
@@ -178,6 +191,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
             # Apply 30% threshold
             non_empty_count = student_df[col].notna().sum()
+            print(f"DEBUG: '{col}' has {non_empty_count} non-empty grades out of {total_students} students")
             if non_empty_count >= threshold:
                 valid_assignments.append(col)
                 print(f"DEBUG: '{col}' is valid ({non_empty_count}/{total_students} students have grades)")
