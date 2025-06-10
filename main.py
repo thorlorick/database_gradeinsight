@@ -69,14 +69,12 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     points_row = df.iloc[2] if len(df) > 2 else None
     student_df = df.iloc[2:].reset_index(drop=True)
 
-    # Rename student columns (A=last_name, B=first_name, C=email)
-    student_df.columns = ['last_name', 'first_name', 'email'] + [f"score_{i}" for i in range(len(student_df.columns)-3)]
+    # Rename columns properly
+    if len(student_df.columns) < 3:
+        return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
 
-    # Extract just the points (starting from Column D)
-    if points_row is not None:
-        total_points = points_row.iloc[3:].tolist()  # Gets everything from Column D onward
-    else:
-        total_points = [100] * (len(student_df.columns) - 3)  # Default to 100 points if not specified
+    new_cols = ['last_name', 'first_name', 'email'] + [str(col) for col in student_df.columns[3:]]
+    student_df.columns = new_cols[:len(student_df.columns)]  # Ensure same length
 
     print("DEBUG: Renamed columns:", student_df.columns.tolist())
 
