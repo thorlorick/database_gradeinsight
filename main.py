@@ -73,19 +73,16 @@ async def upload_form():
 @app.post("/upload")
 async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
-        # Validate file type
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="Only CSV files are allowed")
-        
+
         contents = await file.read()
         print("DEBUG: File received:", file.filename)
 
-        # Better CSV parsing with error handling
         try:
             csv_io = io.StringIO(contents.decode("utf-8"))
             df = pd.read_csv(csv_io, header=0)
         except UnicodeDecodeError:
-            # Try different encoding
             csv_io = io.StringIO(contents.decode("latin-1"))
             df = pd.read_csv(csv_io, header=0)
         except Exception as e:
@@ -93,114 +90,99 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
         print("DEBUG: CSV loaded successfully")
         print("DEBUG: CSV shape:", df.shape)
-        
+
         if df.empty:
             raise HTTPException(status_code=400, detail="CSV file is empty")
-        
-        # Strip whitespace from headers
+
         df.columns = [str(col).strip() for col in df.columns]
         print("DEBUG: Original columns:", df.columns.tolist())
 
-        # Validate minimum rows
-        if len(df) < 4:  # Need at least header + date + points + 1 student
-            raise HTTPException(status_code=400, detail="CSV must have at least 4 rows (header, dates, points, and at least one student)")
+        if len(df) < 4:
+            raise HTTPException(status_code=400, detail="CSV must have at least 4 rows")
 
-        # Row indices: 0=headers, 1=dates, 2=points, 3+=students
         date_row = df.iloc[1] if len(df) > 1 else None
         points_row = df.iloc[2] if len(df) > 2 else None
         student_df = df.iloc[3:].reset_index(drop=True)
 
         if len(student_df.columns) < 3:
-            raise HTTPException(status_code=400, detail="CSV file must have at least 3 columns (last_name, first_name, email)")
+            raise HTTPException(status_code=400, detail="CSV must have at least 3 columns")
 
-        # Only rename first 3 columns, preserve assignment column names exactly
         original_assignment_cols = list(student_df.columns[3:])
         student_df.columns = ['last_name', 'first_name', 'email'] + original_assignment_cols
 
-        print("DEBUG: Renamed columns:", student_df.columns.tolist())
-
-        # Validate required columns
         required_columns = {'last_name', 'first_name', 'email'}
         if not required_columns.issubset(student_df.columns):
             missing = required_columns - set(student_df.columns)
-            raise HTTPException(status_code=400, detail=f"Missing required columns: {list(missing)}")
+            raise HTTPException(status_code=400, detail=f"Missing columns: {list(missing)}")
 
         print("DEBUG: Processing", len(student_df), "students")
 
         # Debug points row
-    if points_row is not None:
-    points_row_index = df[df.iloc[:, 0] == 'Points'].index[0]  # Get actual row index
-    print(f"DEBUG: Points row (Row {points_row_index + 1}, index {points_row_index}):")
-    
-    assignment_columns = df.columns[3:]  # Assignment columns start at index 3
-    for col_idx, col in enumerate(assignment_columns):
-        try:
-            val = points_row.iloc[3 + col_idx]  # Access correct column in points_row
-            if pd.isna(val) or str(val).strip() == '':
-                print(f"  {col}: BLANK (will use default 100.0)")
-            else:
-                print(f"  {col}: '{val}' (type: {type(val)})")
-        except Exception as e:
-            print(f"  {col}: ERROR accessing - {e}")
+        if points_row is not None:
+            points_row_index = df[df.iloc[:, 0] == 'Points'].index[0]
+            print(f"DEBUG: Points row (Row {points_row_index + 1}, index {points_row_index}):")
+        
+            assignment_columns = df.columns[3:]
+            for col_idx, col in enumerate(assignment_columns):
+                try:
+                    val = points_row.iloc[3 + col_idx]
+                    if pd.isna(val) or str(val).strip() == '':
+                        print(f"  {col}: BLANK (will use default 100.0)")
+                    else:
+                        print(f"  {col}: '{val}' (type: {type(val)})")
+                except Exception as e:
+                    print(f"  {col}: ERROR accessing - {e}")
 
         total_students = len(student_df)
         threshold = max(1, int(total_students * 0.3))
         valid_assignments = []
         skipped_assignments = []
 
-        # Debug: Show the points row values
         if points_row is not None:
             print("DEBUG: Points row values:")
             for i, val in enumerate(points_row):
                 col_name = df.columns[i] if i < len(df.columns) else f"Column_{i}"
                 print(f"  Index {i} ({col_name}): '{val}' (type: {type(val)})")
 
-        # Process assignments (skip first 3 columns: last_name, first_name, email)
-        assignment_columns = student_df.columns[3:]  # Only assignment columns
+        assignment_columns = student_df.columns[3:]
         print(f"DEBUG: Assignment columns to check: {list(assignment_columns)}")
-        
+
         for col in assignment_columns:
-            # Get the original column index in the DataFrame
             original_col_index = list(df.columns).index(col) if col in df.columns else None
             if original_col_index is None:
-                print(f"DEBUG: Skipping '{col}' - column not found in original data")
+                print(f"DEBUG: Skipping '{col}' - column not found")
                 skipped_assignments.append(col)
                 continue
-                
-            print(f"DEBUG: Checking '{col}' at original index {original_col_index}")
-                
-            # Check if max points in points_row is valid
-            # Note: B3 and C3 (first_name, email columns) should be ignored for points check
+
+            print(f"DEBUG: Checking '{col}' at index {original_col_index}")
+
             max_points_val = None
             try:
                 if points_row is not None and original_col_index < len(points_row):
                     max_points_val = points_row.iloc[original_col_index]
-                    print(f"DEBUG: '{col}' max_points_val from index {original_col_index}: '{max_points_val}' (type: {type(max_points_val)})")
-                    
                     if pd.isna(max_points_val) or str(max_points_val).strip() == '':
-                        print(f"DEBUG: Skipping '{col}' - no max points specified (intentionally blank in row 3)")
+                        print(f"DEBUG: Skipping '{col}' - no max points")
                         skipped_assignments.append(col)
                         continue
                     else:
                         print(f"DEBUG: '{col}' has max points: {max_points_val}")
                 else:
-                    print(f"DEBUG: Skipping '{col}' - points row not available or index out of range")
+                    print(f"DEBUG: Skipping '{col}' - no points row")
                     skipped_assignments.append(col)
                     continue
             except Exception as e:
-                print(f"DEBUG: Skipping '{col}' due to error accessing max points: {e}")
+                print(f"DEBUG: Skipping '{col}' - error: {e}")
                 skipped_assignments.append(col)
                 continue
 
-            # Apply 30% threshold
             non_empty_count = student_df[col].notna().sum()
-            print(f"DEBUG: '{col}' has {non_empty_count} non-empty grades out of {total_students} students")
+            print(f"DEBUG: '{col}' has {non_empty_count}/{total_students} grades")
             if non_empty_count >= threshold:
                 valid_assignments.append(col)
-                print(f"DEBUG: '{col}' is valid ({non_empty_count}/{total_students} students have grades)")
+                print(f"DEBUG: '{col}' is valid")
             else:
                 skipped_assignments.append(col)
-                print(f"DEBUG: Skipping '{col}' - only {non_empty_count}/{total_students} students have grades (below {threshold} threshold)")
+                print(f"DEBUG: Skipping '{col}' - below threshold")
 
         if not valid_assignments:
             return JSONResponse(
@@ -215,63 +197,50 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
         processed_students = 0
 
-        # Process students
         for index, row in student_df.iterrows():
             email = str(row['email']).strip().lower()
             if not email or email == 'nan':
-                print(f"DEBUG: Skipping row {index} - no valid email")
+                print(f"DEBUG: Skipping row {index} - no email")
                 continue
-            
-            processed_students += 1
 
-            # Get or create student
+            processed_students += 1
             student = db.query(Student).filter_by(email=email).first()
             if student:
                 student.first_name = str(row['first_name']).strip()
                 student.last_name = str(row['last_name']).strip()
             else:
                 student = Student(
-                    email=email, 
-                    first_name=str(row['first_name']).strip(), 
+                    email=email,
+                    first_name=str(row['first_name']).strip(),
                     last_name=str(row['last_name']).strip()
                 )
                 db.add(student)
 
-            # Process grades for valid assignments
             for col in valid_assignments:
                 try:
                     score = row[col]
                     if pd.isna(score):
                         continue
 
-                    # Get assignment date
                     assignment_date = None
                     original_col_index = list(df.columns).index(col) if col in df.columns else None
-                    
-                    if date_row is not None and original_col_index is not None and original_col_index < len(date_row):
-                        try:
-                            date_val = date_row.iloc[original_col_index]
-                            if pd.notna(date_val) and str(date_val).strip() != '':
-                                parsed_date = pd.to_datetime(date_val, errors='coerce')
-                                if pd.notna(parsed_date):
-                                    assignment_date = parsed_date.date()
-                                    # Skip epoch dates
-                                    if assignment_date == datetime(1970, 1, 1).date():
-                                        assignment_date = None
-                        except Exception as e:
-                            print(f"DEBUG: Date parsing error for '{col}': {e}")
 
-                    # Get max points
+                    if date_row is not None and original_col_index is not None and original_col_index < len(date_row):
+                        date_val = date_row.iloc[original_col_index]
+                        if pd.notna(date_val) and str(date_val).strip() != '':
+                            parsed_date = pd.to_datetime(date_val, errors='coerce')
+                            if pd.notna(parsed_date) and parsed_date.date() != datetime(1970, 1, 1).date():
+                                assignment_date = parsed_date.date()
+
                     max_points = 100.0
                     if points_row is not None and original_col_index is not None and original_col_index < len(points_row):
                         try:
                             max_val = points_row.iloc[original_col_index]
                             if pd.notna(max_val) and str(max_val).strip() != '':
                                 max_points = float(max_val)
-                        except (ValueError, TypeError) as e:
-                            print(f"DEBUG: Could not parse max points for '{col}': {e}")
+                        except (ValueError, TypeError):
+                            pass
 
-                    # Get or create assignment
                     if assignment_date is None:
                         assignment = db.query(Assignment).filter(
                             and_(Assignment.name == col, Assignment.date.is_(None))
@@ -283,39 +252,37 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
                     if not assignment:
                         assignment = Assignment(
-                            name=col, 
-                            date=assignment_date, 
+                            name=col,
+                            date=assignment_date,
                             max_points=max_points
                         )
                         db.add(assignment)
-                        db.flush()  # Get the ID
+                        db.flush()
 
-                    # Create or update grade
                     grade = db.query(Grade).filter_by(
-                        email=email, 
+                        email=email,
                         assignment_id=assignment.id
                     ).first()
-                    
+
                     if grade:
                         grade.score = float(score)
                     else:
                         grade = Grade(
-                            email=email, 
-                            assignment_id=assignment.id, 
+                            email=email,
+                            assignment_id=assignment.id,
                             score=float(score)
                         )
                         db.add(grade)
-                        
+
                 except Exception as e:
                     print(f"DEBUG: Error processing grade for {email}, {col}: {e}")
                     continue
 
-        # Commit all changes
         db.commit()
-        print("DEBUG: Upload committed to DB successfully")
+        print("DEBUG: Upload committed successfully")
 
         return {
-            "status": f"File {file.filename} uploaded and processed successfully",
+            "status": f"File {file.filename} uploaded and processed",
             "total_students": total_students,
             "processed_students": processed_students,
             "threshold": threshold,
@@ -331,6 +298,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         print(traceback.format_exc())
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @app.get("/view-students")
 def view_students(db: Session = Depends(get_db)):
