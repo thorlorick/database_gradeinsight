@@ -66,6 +66,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     # Strip whitespace from headers
     df.columns = [str(col).strip() for col in df.columns]
     print("DEBUG: CSV shape:", df.shape)
+    print("DEBUG: Original columns:", df.columns.tolist())
 
     date_row = df.iloc[1] if len(df) > 1 else None
     points_row = df.iloc[2] if len(df) > 2 else None
@@ -74,9 +75,9 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     if len(student_df.columns) < 3:
         return {"error": "CSV file must have at least 3 columns (last_name, first_name, email)"}
 
-    new_cols = ['last_name', 'first_name', 'email'] + [str(col).strip() for col in student_df.columns[3:]]
-    student_df.columns = new_cols[:len(student_df.columns)]
-    student_df.columns = [str(col).strip() for col in student_df.columns]
+    # Only rename first 3 columns, preserve assignment column names exactly
+    original_assignment_cols = list(student_df.columns[3:])
+    student_df.columns = ['last_name', 'first_name', 'email'] + original_assignment_cols
 
     print("DEBUG: Renamed columns:", student_df.columns.tolist())
 
@@ -88,9 +89,16 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
     if points_row is not None:
         print("DEBUG: Points row (Row 3, index 2) data:")
+        print("DEBUG: B3 and C3 are expected to be blank (metadata row)")
         for col in df.columns[3:]:
-            val = points_row.get(col, 'N/A') if hasattr(points_row, 'get') else points_row[col] if col in points_row.index else 'N/A'
-            print(f"  {col}: '{val}' (type: {type(val)})")
+            try:
+                val = points_row[col] if col in points_row.index else 'N/A'
+                if pd.isna(val) or str(val).strip() == '':
+                    print(f"  {col}: BLANK (will use default 100.0)")
+                else:
+                    print(f"  {col}: '{val}' (type: {type(val)})")
+            except Exception as e:
+                print(f"  {col}: ERROR accessing - {e}")
     else:
         print("DEBUG: No points row found in CSV")
 
@@ -114,12 +122,14 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             "skipped_assignments": skipped_assignments
         }
 
-    # Build column map (new -> original)
+    # Build column mapping (student_df column -> original df column)
     col_mapping = {}
-    for i, new_col in enumerate(student_df.columns[3:]):
-        if i + 3 < len(df.columns):
-            original_col = str(df.columns[i + 3]).strip()
-            col_mapping[new_col.strip()] = original_col
+    for i, assignment_col in enumerate(student_df.columns[3:]):
+        original_col_index = i + 3
+        if original_col_index < len(df.columns):
+            original_col = df.columns[original_col_index]
+            col_mapping[assignment_col] = original_col
+            print(f"DEBUG: Mapping '{assignment_col}' -> '{original_col}'")
 
     for index, row in student_df.iterrows():
         email = str(row['email']).strip().lower()
@@ -139,31 +149,33 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             if pd.isna(score):
                 continue
 
-            original_col = col_mapping.get(col.strip(), col.strip())
-            if original_col not in points_row.index:
-                print(f"WARNING: Column '{original_col}' not found in points_row")
+            # Get original column name for metadata lookup
+            original_col = col_mapping.get(col, col)
 
             assignment_date = None
-            if date_row is not None:
-                date_val = date_row.get(original_col, None) if hasattr(date_row, 'get') else date_row[original_col] if original_col in date_row.index else None
-                if pd.notna(date_val) and str(date_val).strip() != '':
-                    try:
+            if date_row is not None and original_col in date_row.index:
+                try:
+                    date_val = date_row[original_col]
+                    if pd.notna(date_val) and str(date_val).strip() != '':
                         parsed_date = pd.to_datetime(date_val, errors='coerce')
                         if pd.notna(parsed_date):
                             assignment_date = parsed_date.date()
                             if assignment_date == datetime(1970, 1, 1).date():
                                 assignment_date = None
-                    except Exception:
-                        assignment_date = None
+                except Exception as e:
+                    print(f"DEBUG: Date parsing error for '{col}': {e}")
 
             max_points = 100.0
-            if points_row is not None:
-                max_val = points_row.get(original_col, None) if hasattr(points_row, 'get') else points_row[original_col] if original_col in points_row.index else None
-                if pd.notna(max_val) and str(max_val).strip() != '':
-                    try:
+            if points_row is not None and original_col in points_row.index:
+                try:
+                    max_val = points_row[original_col]
+                    if pd.notna(max_val) and str(max_val).strip() != '':
                         max_points = float(max_val)
-                    except (ValueError, TypeError):
-                        pass
+                        print(f"DEBUG: Assignment '{col}' max points: {max_points}")
+                    else:
+                        print(f"DEBUG: No max points for '{col}', using default 100.0")
+                except (ValueError, TypeError) as e:
+                    print(f"DEBUG: Could not parse max points for '{col}': {e}")
 
             if assignment_date is None:
                 assignment = db.query(Assignment).filter(and_(Assignment.name == col, Assignment.date.is_(None))).first()
@@ -190,9 +202,10 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         "total_students": total_students,
         "threshold": threshold,
         "valid_assignments": valid_assignments,
-        "skipped_assumptions": skipped_assignments,
+        "skipped_assignments": skipped_assignments,  # Fixed typo
         "processed_assignments": len(valid_assignments)
     }
+    
 
 @app.get("/view-students")
 def view_students(db: Session = Depends(get_db)):
