@@ -111,6 +111,20 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     skipped_assignments = []
 
     for col in student_df.columns[3:]:
+        # Check if max points in Row 2 (index 2) is valid
+        max_points_val = None
+        try:
+            original_col = df.columns[df.columns.get_loc(col)]
+            max_points_val = points_row[original_col] if points_row is not None else None
+            if pd.isna(max_points_val) or str(max_points_val).strip() == '':
+                skipped_assignments.append(col)
+                continue
+        except Exception as e:
+            print(f"DEBUG: Skipping '{col}' due to missing max points: {e}")
+            skipped_assignments.append(col)
+            continue
+
+        # Now apply 30% threshold
         non_empty_count = student_df[col].notna().sum()
         if non_empty_count >= threshold:
             valid_assignments.append(col)
@@ -140,7 +154,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         email = str(row['email']).strip().lower()
         if not email:
             continue
-            processed_students += 1
+        processed_students += 1
 
         student = db.query(Student).filter_by(email=email).first()
         if student:
@@ -211,15 +225,14 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
     print("DEBUG: Upload committed to DB.")
 
     return {
-    "status": f"File {file.filename} uploaded and processed",
-    "total_students": total_students,
-    "processed_students": processed_students,
-    "threshold": threshold,
-    "valid_assignments": valid_assignments,
-    "skipped_assignments": skipped_assignments,
-    "processed_assignments": len(valid_assignments)
-}
-    
+        "status": f"File {file.filename} uploaded and processed",
+        "total_students": total_students,
+        "processed_students": processed_students,
+        "threshold": threshold,
+        "valid_assignments": valid_assignments,
+        "skipped_assignments": skipped_assignments,
+        "processed_assignments": len(valid_assignments)
+    }
 
 @app.get("/view-students")
 def view_students(db: Session = Depends(get_db)):
@@ -314,3 +327,4 @@ def reset_db():
         return {"status": "Database reset (GET)"}
     finally:
         db.close()
+
