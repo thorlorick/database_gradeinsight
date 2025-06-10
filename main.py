@@ -289,8 +289,8 @@ def get_grades_for_table(db: Session = Depends(get_db)):
             grades_list.append({
                 "assignment": assignment.name,
                 "date": assignment.date.isoformat() if assignment.date else None,
-                "score": grade.score,
                 "max_points": assignment.max_points,
+                "score": grade.score,
             })
         
         result.append({
