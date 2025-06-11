@@ -53,7 +53,6 @@ def download_template():
             status_code=404,
             content={"error": "Template file not found."}
         )
-
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_form():
     return """
@@ -63,15 +62,26 @@ async def upload_form():
         </head>
         <body>
             <h1>Upload CSV File</h1>
-            <form id="uploadForm" action="/upload" enctype="multipart/form-data" method="post">
-                <input name="file" type="file" accept=".csv" required>
+            <form id="uploadForm">
+                <input id="fileInput" name="file" type="file" accept=".csv" required>
                 <input type="submit" value="Upload">
             </form>
+
+            <div id="loadingMessage" style="display:none; margin-top:1rem; font-weight:bold;">
+                Uploading... please wait.
+            </div>
+
             <script>
-                document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+                const form = document.getElementById('uploadForm');
+                const loadingMessage = document.getElementById('loadingMessage');
+                const fileInput = document.getElementById('fileInput');
+
+                form.addEventListener('submit', async function(event) {
                     event.preventDefault();
-                    const form = event.target;
-                    const formData = new FormData(form);
+                    loadingMessage.style.display = 'block';
+
+                    const formData = new FormData();
+                    formData.append('file', fileInput.files[0]);
 
                     try {
                         const response = await fetch('/upload', {
@@ -79,15 +89,16 @@ async def upload_form():
                             body: formData,
                         });
                         if (!response.ok) throw new Error('Upload failed');
-                        window.location.href = '/dashboard';  // adjust this path as needed
+                        window.location.href = '/';  // redirect to dashboard
                     } catch (err) {
-                        alert('Upload failed: ' + err.message);
+                        loadingMessage.textContent = 'Upload failed. Please try again.';
                     }
                 });
             </script>
         </body>
     </html>
     """
+
 
 @app.post("/upload")
 async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
