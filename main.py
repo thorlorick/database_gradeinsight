@@ -89,7 +89,7 @@ async def upload_form():
                             body: formData,
                         });
                         if (!response.ok) throw new Error('Upload failed');
-                        window.location.href = '/';  // redirect to dashboard
+                        window.location.href = '/dashboard';  // redirect to dashboard
                     } catch (err) {
                         loadingMessage.textContent = 'Upload failed. Please try again.';
                     }
