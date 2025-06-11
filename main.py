@@ -606,6 +606,8 @@ def get_student_details(email: str, db: Session = Depends(get_db)):
 # Don't forget to add these imports at the top of your main.py file:
 # from sqlalchemy import or_, func
 
+#student API for their portal
+
 @app.get("/reset-db")
 def reset_db():
     db = SessionLocal()
