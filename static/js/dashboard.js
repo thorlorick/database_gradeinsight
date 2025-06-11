@@ -180,6 +180,37 @@ function highlightText(text) {
     return text.replace(regex, '<span class="highlight">$1</span>');
 }
 
+function updateSearchStats() {
+    const statsElement = document.getElementById('searchStats');
+    const searchInput = document.getElementById('studentSearch');
+    const averageElement = document.getElementById('averageScore');
+
+    if (searchInput.value.trim()) {
+        statsElement.textContent = `Showing ${filteredStudents.length} of ${allStudents.length} students`;
+    } else {
+        statsElement.textContent = `${allStudents.length} students total`;
+    }
+
+    // Calculate average
+    let totalScore = 0;
+    let totalMax = 0;
+
+    filteredStudents.forEach(student => {
+        student.grades.forEach(g => {
+            totalScore += g.score;
+            totalMax += g.max_points;
+        });
+    });
+
+    if (totalMax > 0) {
+        const averagePercent = Math.round((totalScore / totalMax) * 100);
+        averageElement.textContent = `${averagePercent}%`;
+    } else {
+        averageElement.textContent = '–';
+    }
+}
+
+
 // Utility functions
 function escapeHtml(unsafe) {
     return unsafe
