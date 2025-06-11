@@ -4,174 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grade Insight Dashboard</title>
-    <link rel="stylesheet" href="/static/dashboard.css">
+    <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 <body>
+    <div class="header">
+        <h1>Grade Insight Dashboard</h1>
+    </div>
+
     <div class="container">
-        <h1>📊 Grade Insight Dashboard</h1>
-        <div class="navigation">
-            <a href="/dashboard" class="nav-button active">📊 View Grades</a>
-            <a href="/upload" class="nav-button">📤 Upload CSV</a>
-            <a href="/students" class="nav-button">👥 Students</a>
-        </div>
-        
-        <div id="loading" class="loading">
-            Loading grade data...
-        </div>
-        
-        <div id="error" class="error" style="display: none;">
-        </div>
-        
-        <div id="content" style="display: none;">
-            <div id="stats" class="stats-box">
-                <div class="stats-item">Students: <span id="student-count">0</span></div>
-                <div class="stats-item">Assignments: <span id="assignment-count">0</span></div>
-                <div class="stats-item">Total Grades: <span id="grade-count">0</span></div>
-            </div>
-            
-            <div id="grades-table-container">
-                <!-- Table will be inserted here -->
+        <div class="controls">
+            <div class="search-section">
+                <input 
+                    type="text" 
+                    id="studentSearch" 
+                    class="search-input" 
+                    placeholder="Search by student name or email..."
+                    autocomplete="off"
+                >
+                <button id="clearSearch" class="clear-search" style="display: none;">Clear Search</button>
+                <div id="searchStats" class="search-stats"></div>
             </div>
         </div>
-        
-        <div id="no-data" class="no-data" style="display: none;">
-            <h3>No grade data found</h3>
-            <p>Upload a CSV file to get started!</p>
-            <a href="/upload" class="nav-button">📤 Upload CSV</a>
+
+        <div class="table-container">
+            <div class="table-wrapper">
+                <table class="grades-table" id="gradesTable">
+                    <thead>
+                        <tr id="tableHeader">
+                            <th class="student-info">Student</th>
+                            <!-- Assignment headers will be added here dynamically -->
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr>
+                            <td colspan="100%" class="loading">Loading grades...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-<h2>Search Student by Email</h2>
-<input type="text" id="emailInput" placeholder="Enter student email">
-<button onclick="searchStudent()">Search</button>
 
-<div id="studentResult"></div>
-
-<script>
-    async function searchStudent() {
-        const email = document.getElementById("emailInput").value.trim().toLowerCase();
-        if (!email) return;
-
-        const res = await fetch(`/api/student/${encodeURIComponent(email)}`);
-        const data = await res.json();
-
-        const resultDiv = document.getElementById("studentResult");
-        resultDiv.innerHTML = '';
-
-        if (res.ok) {
-            resultDiv.innerHTML = `
-                <h3>${data.first_name} ${data.last_name}</h3>
-                <p>Email: ${data.email}</p>
-                <h4>Grades:</h4>
-                <ul>
-                    ${data.grades.map(g => `
-                        <li>${g.assignment} (${g.date || 'No date'}): ${g.score}/${g.max_points}</li>
-                    `).join('')}
-                </ul>
-            `;
-        } else {
-            resultDiv.innerHTML = `<p style="color: red;">${data.detail}</p>`;
-        }
-    }
-</script>
-
-    <script>
-        // Function to load and display grades
-        async function loadGrades() {
-            try {
-                const response = await fetch('/api/grades-table');
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                document.getElementById('loading').style.display = 'none';
-                
-                if (data.students && data.students.length > 0) {
-                    displayGrades(data);
-                    document.getElementById('content').style.display = 'block';
-                } else {
-                    document.getElementById('no-data').style.display = 'block';
-                }
-                
-            } catch (error) {
-                console.error('Error loading grades:', error);
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('error').innerHTML = 'Error loading grade data: ' + error.message;
-                document.getElementById('error').style.display = 'block';
-            }
-        }
-        
-        // Function to display grades in a table
-        function displayGrades(data) {
-            const students = data.students;
-            
-            // Update stats
-            document.getElementById('student-count').textContent = students.length;
-            
-            // Get all unique assignments
-            const allAssignments = new Set();
-            students.forEach(student => {
-                student.grades.forEach(grade => {
-                    allAssignments.add(grade.assignment);
-                });
-            });
-            
-            const assignmentList = Array.from(allAssignments).sort();
-            document.getElementById('assignment-count').textContent = assignmentList.length;
-            
-            // Count total grades
-            let totalGrades = 0;
-            students.forEach(student => {
-                totalGrades += student.grades.length;
-            });
-            document.getElementById('grade-count').textContent = totalGrades;
-            
-            // Create table
-            let tableHTML = '<table><thead><tr>';
-            tableHTML += '<th>Student</th>';
-            tableHTML += '<th>Email</th>';
-            
-            // Add assignment columns
-            assignmentList.forEach(assignment => {
-                tableHTML += `<th class="assignment-header">${assignment}</th>`;
-            });
-            
-            tableHTML += '</tr></thead><tbody>';
-            
-            // Add student rows
-            students.forEach(student => {
-                tableHTML += '<tr>';
-                tableHTML += `<td class="student-info">${student.first_name} ${student.last_name}</td>`;
-                tableHTML += `<td>${student.email}</td>`;
-                
-                // Add grade cells
-                assignmentList.forEach(assignment => {
-                    const grade = student.grades.find(g => g.assignment === assignment);
-                    if (grade) {
-                        const percentage = (grade.score / grade.max_points) * 100;
-                        const gradeClass = percentage >= 80 ? 'grade-good' : 
-                                         percentage >= 60 ? 'grade-medium' : 'grade-poor';
-                        tableHTML += `<td class="grade-cell ${gradeClass}">${grade.score}/${grade.max_points} (${percentage.toFixed(1)}%)</td>`;
-                    } else {
-                        tableHTML += '<td class="grade-cell">-</td>';
-                    }
-                });
-                
-                tableHTML += '</tr>';
-            });
-            
-            tableHTML += '</tbody></table>';
-            
-            document.getElementById('grades-table-container').innerHTML = tableHTML;
-        }
-        
-        // Load grades when page loads
-        window.onload = function() {
-            loadGrades();
-        };
-    </script>
-    <script src="{{ url_for('static', path='/dashboard.js') }}"></script>
+    <script src="/static/js/dashboard.js"></script>
 </body>
 </html>
+
