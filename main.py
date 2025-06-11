@@ -107,15 +107,16 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         if len(student_df.columns) < 3:
             raise HTTPException(status_code=400, detail="CSV must have at least 3 columns")
 
-        original_assignment_cols = list(student_df.columns[3:])
-        student_df.columns = ['last_name', 'first_name', 'email'] + original_assignment_cols
+        assignment_cols_original = list(student_df.columns[3:])
+        student_df.columns = ['last_name', 'first_name', 'email'] + assignment_cols_original
+
+        # Map new column names to original
+        original_assignment_mapping = dict(zip(assignment_cols_original, df.columns[3:]))
 
         required_columns = {'last_name', 'first_name', 'email'}
         if not required_columns.issubset(student_df.columns):
             missing = required_columns - set(student_df.columns)
             raise HTTPException(status_code=400, detail=f"Missing columns: {list(missing)}")
-
-        print("DEBUG: Processing", len(student_df), "students")
 
         total_students = len(student_df)
         threshold = max(1, int(total_students * 0.3))
@@ -126,11 +127,13 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         print(f"DEBUG: Assignment columns to check: {list(assignment_columns)}")
 
         for col in assignment_columns:
-            original_col_index = list(df.columns).index(col) if col in df.columns else None
-            if original_col_index is None:
-                print(f"DEBUG: Skipping '{col}' - column not found")
+            df_col = original_assignment_mapping.get(col, col)
+            if df_col not in df.columns:
+                print(f"DEBUG: Skipping '{col}' - mapped column '{df_col}' not in df.columns")
                 skipped_assignments.append(col)
                 continue
+
+            original_col_index = list(df.columns).index(df_col)
 
             max_points_val = None
             try:
@@ -151,7 +154,6 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                 skipped_assignments.append(col)
                 continue
 
-            # Count non-empty numeric scores for this assignment
             non_empty_count = student_df[col].apply(lambda x: isinstance(x, (int, float)) and not pd.isna(x)).sum()
             if non_empty_count >= threshold:
                 valid_assignments.append(col)
@@ -198,10 +200,11 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                     if pd.isna(score):
                         continue
 
-                    assignment_date = None
-                    original_col_index = list(df.columns).index(col) if col in df.columns else None
+                    df_col = original_assignment_mapping.get(col, col)
+                    original_col_index = list(df.columns).index(df_col)
 
-                    if date_row is not None and original_col_index is not None and original_col_index < len(date_row):
+                    assignment_date = None
+                    if date_row is not None and original_col_index < len(date_row):
                         date_val = date_row.iloc[original_col_index]
                         if pd.notna(date_val) and str(date_val).strip() != '':
                             parsed_date = pd.to_datetime(date_val, errors='coerce')
@@ -209,7 +212,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                                 assignment_date = parsed_date.date()
 
                     max_points = 100.0
-                    if points_row is not None and original_col_index is not None and original_col_index < len(points_row):
+                    if points_row is not None and original_col_index < len(points_row):
                         try:
                             max_val = points_row.iloc[original_col_index]
                             if pd.notna(max_val) and str(max_val).strip() != '':
