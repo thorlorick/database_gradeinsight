@@ -11,6 +11,7 @@ from database import Base, engine, SessionLocal
 from models import Student, Assignment, Grade
 from datetime import datetime
 from sqlalchemy import and_
+from sqlalchemy import or_, func
 import traceback
 
 app = FastAPI()
@@ -453,6 +454,128 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
         "grades": grades_list
     }
 
+# Add these endpoints to your main.py file
+
+@app.get("/api/search-students")
+def search_students(query: str = "", db: Session = Depends(get_db)):
+    """Search students by name or email"""
+    try:
+        students_query = db.query(Student)
+        
+        if query.strip():
+            search_term = f"%{query.lower()}%"
+            students_query = students_query.filter(
+                or_(
+                    func.lower(Student.first_name).like(search_term),
+                    func.lower(Student.last_name).like(search_term),
+                    func.lower(Student.email).like(search_term),
+                    func.lower(func.concat(Student.first_name, ' ', Student.last_name)).like(search_term),
+                    func.lower(func.concat(Student.last_name, ', ', Student.first_name)).like(search_term)
+                )
+            )
+        
+        students = students_query.all()
+        result = []
+        
+        for student in students:
+            grades_list = []
+            for grade in student.grades:
+                assignment = grade.assignment
+                grades_list.append({
+                    "assignment": assignment.name,
+                    "date": assignment.date.isoformat() if assignment.date else None,
+                    "max_points": assignment.max_points,
+                    "score": grade.score,
+                })
+            
+            result.append({
+                "email": student.email,
+                "first_name": student.first_name,
+                "last_name": student.last_name,
+                "grades": grades_list,
+            })
+        
+        return {
+            "students": result,
+            "total_found": len(result),
+            "search_query": query
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching students: {str(e)}")
+
+@app.get("/api/assignments")
+def get_assignments(db: Session = Depends(get_db)):
+    """Get all assignments"""
+    try:
+        assignments = db.query(Assignment).order_by(Assignment.date.asc(), Assignment.name.asc()).all()
+        result = []
+        
+        for assignment in assignments:
+            # Count students who have grades for this assignment
+            grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
+            
+            result.append({
+                "id": assignment.id,
+                "name": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "max_points": assignment.max_points,
+                "student_count": grade_count
+            })
+        
+        return {"assignments": result}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
+
+@app.get("/api/student/{email}")
+def get_student_details(email: str, db: Session = Depends(get_db)):
+    """Get detailed information for a specific student"""
+    try:
+        student = db.query(Student).filter_by(email=email.lower()).first()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+        
+        grades_list = []
+        total_points = 0
+        max_possible = 0
+        
+        for grade in student.grades:
+            assignment = grade.assignment
+            grade_info = {
+                "assignment": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "max_points": assignment.max_points,
+                "score": grade.score,
+                "percentage": round((grade.score / assignment.max_points) * 100, 1) if assignment.max_points > 0 else 0
+            }
+            grades_list.append(grade_info)
+            total_points += grade.score
+            max_possible += assignment.max_points
+        
+        # Sort grades by date, then by assignment name
+        grades_list.sort(key=lambda x: (x['date'] or '', x['assignment']))
+        
+        overall_percentage = round((total_points / max_possible) * 100, 1) if max_possible > 0 else 0
+        
+        return {
+            "email": student.email,
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "grades": grades_list,
+            "total_assignments": len(grades_list),
+            "total_points": total_points,
+            "max_possible": max_possible,
+            "overall_percentage": overall_percentage
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving student details: {str(e)}")
+
+# Don't forget to add these imports at the top of your main.py file:
+# from sqlalchemy import or_, func
 
 @app.get("/reset-db")
 def reset_db():
