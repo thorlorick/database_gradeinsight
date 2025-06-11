@@ -181,6 +181,16 @@
     background-color: #c0392b;
 }
 
+.stats-box {
+    margin-top: 1rem;
+    font-weight: bold;
+    background-color: #e8f5e9;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+
 @media (max-width: 768px) {
     .search-section {
         flex-direction: column;
