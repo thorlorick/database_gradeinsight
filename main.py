@@ -117,32 +117,10 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
 
         print("DEBUG: Processing", len(student_df), "students")
 
-        # Debug points row
-        if points_row is not None:
-            points_row_index = df[df.iloc[:, 0] == 'Points'].index[0]
-            print(f"DEBUG: Points row (Row {points_row_index + 1}, index {points_row_index}):")
-        
-            assignment_columns = df.columns[3:]
-            for col_idx, col in enumerate(assignment_columns):
-                try:
-                    val = points_row.iloc[3 + col_idx]
-                    if pd.isna(val) or str(val).strip() == '':
-                        print(f"  {col}: BLANK (will use default 100.0)")
-                    else:
-                        print(f"  {col}: '{val}' (type: {type(val)})")
-                except Exception as e:
-                    print(f"  {col}: ERROR accessing - {e}")
-
         total_students = len(student_df)
         threshold = max(1, int(total_students * 0.3))
         valid_assignments = []
         skipped_assignments = []
-
-        if points_row is not None:
-            print("DEBUG: Points row values:")
-            for i, val in enumerate(points_row):
-                col_name = df.columns[i] if i < len(df.columns) else f"Column_{i}"
-                print(f"  Index {i} ({col_name}): '{val}' (type: {type(val)})")
 
         assignment_columns = student_df.columns[3:]
         print(f"DEBUG: Assignment columns to check: {list(assignment_columns)}")
@@ -153,8 +131,6 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                 print(f"DEBUG: Skipping '{col}' - column not found")
                 skipped_assignments.append(col)
                 continue
-
-            print(f"DEBUG: Checking '{col}' at index {original_col_index}")
 
             max_points_val = None
             try:
@@ -175,8 +151,8 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                 skipped_assignments.append(col)
                 continue
 
-            non_empty_count = student_df[col].notna().sum()
-            print(f"DEBUG: '{col}' has {non_empty_count}/{total_students} grades")
+            # Count non-empty numeric scores for this assignment
+            non_empty_count = student_df[col].apply(lambda x: isinstance(x, (int, float)) and not pd.isna(x)).sum()
             if non_empty_count >= threshold:
                 valid_assignments.append(col)
                 print(f"DEBUG: '{col}' is valid")
@@ -422,3 +398,4 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
