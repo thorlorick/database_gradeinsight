@@ -430,6 +430,30 @@ def get_students_list(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving students list: {str(e)}")
 
+@app.get("/api/student/{email}")
+def get_student_by_email(email: str, db: Session = Depends(get_db)):
+    student = db.query(Student).filter_by(email=email.lower().strip()).first()
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    grades_list = []
+    for grade in student.grades:
+        assignment = grade.assignment
+        grades_list.append({
+            "assignment": assignment.name,
+            "date": assignment.date.isoformat() if assignment.date else None,
+            "score": grade.score,
+            "max_points": assignment.max_points
+        })
+
+    return {
+        "email": student.email,
+        "first_name": student.first_name,
+        "last_name": student.last_name,
+        "grades": grades_list
+    }
+
+
 @app.get("/reset-db")
 def reset_db():
     db = SessionLocal()
