@@ -1,0 +1,328 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+}
+
+.header {
+    background-color: #2c3e50;
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 30px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.controls {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 2rem;
+}
+
+.search-section {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.search-input {
+    flex: 1;
+    min-width: 300px;
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.search-stats {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.clear-search {
+    padding: 0.75rem 1rem;
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.clear-search:hover {
+    background-color: #c0392b;
+}
+
+.table-container {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+    background: white;
+}
+
+.table-wrapper {
+    position: relative;
+    height: 600px;
+    overflow: auto;
+    border: 1px solid #ddd;
+}
+
+.grades-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: white;
+}
+
+.grades-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+}
+
+.grades-table th,
+.grades-table td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    border-right: 1px solid #ddd;
+    background: white;
+}
+
+.grades-table th {
+    background-color: #34495e;
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Fixed first column (student info) */
+.grades-table th:first-child,
+.grades-table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 5;
+    background: white;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+}
+
+.grades-table th:first-child {
+    z-index: 15;
+    background-color: #2c3e50;
+    color: white;
+}
+
+.grades-table tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.student-info {
+    min-width: 250px;
+    max-width: 250px;
+    font-weight: bold;
+}
+
+.student-name {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.student-email {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.assignment-header {
+    min-width: 120px;
+    max-width: 120px;
+    text-align: center;
+}
+
+.assignment-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.assignment-info {
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+.grade-cell {
+    text-align: center;
+    font-weight: bold;
+    min-width: 120px;
+    max-width: 120px;
+}
+
+.grade-score {
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.grade-percentage {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+/* Grade colors */
+.grade-A { color: #27ae60; }
+.grade-B { color: #f39c12; }
+.grade-C { color: #e67e22; }
+.grade-D { color: #e74c3c; }
+.grade-F { color: #c0392b; }
+
+.grade-good   { color: #0b6623; }
+.grade-medium { color: #0047ab; }
+.grade-poor   { color: #ff1a1a; }
+
+.no-grade {
+    color: #bdc3c7;
+    font-style: italic;
+}
+
+.loading {
+    text-align: center;
+    padding: 2rem;
+    font-size: 18px;
+    color: #666;
+}
+
+.error {
+    background-color: #e74c3c;
+    color: white;
+    padding: 1rem;
+    border-radius: 4px;
+    margin: 1rem 0;
+}
+
+.success {
+    background-color: #d4edda;
+    color: #155724;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    border: 1px solid #c3e6cb;
+}
+
+.no-results,
+.no-data {
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+    color: #666;
+    font-style: italic;
+}
+
+.highlight {
+    background-color: #fff3cd;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+}
+
+.navigation {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.nav-button {
+    display: inline-block;
+    margin: 0 10px;
+    padding: 12px 24px;
+    background-color: #007bff;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.nav-button:hover {
+    background-color: #0056b3;
+}
+
+.nav-button.active {
+    background-color: #28a745;
+}
+
+.stats-box {
+    background-color: #e9ecef;
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
+
+.stats-item {
+    display: inline-block;
+    margin-right: 30px;
+    font-weight: bold;
+}
+
+h1 {
+    color: #333;
+    text-align: center;
+    margin-bottom: 30px;
+    border-bottom: 3px solid #007bff;
+    padding-bottom: 10px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    background-color: white;
+}
+
+th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+th {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    color: #333;
+}
+
+tr:hover {
+    background-color: #f5f5f5;
+}
+
+@media (max-width: 768px) {
+    .search-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .search-input {
+        min-width: auto;
+    }
+}
