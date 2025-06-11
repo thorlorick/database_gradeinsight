@@ -3,14 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <title>Upload CSV</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/css/styles.css" />
 </head>
 <body>
   <h1>Upload CSV File</h1>
-  <form action="/upload" enctype="multipart/form-data" method="post">
+  <form id="uploadForm" enctype="multipart/form-data" method="post">
     <input name="file" type="file" accept=".csv" required />
     <button type="submit">Upload</button>
   </form>
+
+  <script>
+    document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+      event.preventDefault(); // prevent normal form submit
+
+      const form = event.target;
+      const formData = new FormData(form);
+
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) throw new Error('Upload failed');
+
+        // Redirect to dashboard after successful upload
+        window.location.href = '/dashboard';  // change to your dashboard URL/path
+      } catch (err) {
+        alert('Upload failed: ' + err.message);
+      }
+    });
+  </script>
 </body>
 </html>
+
 
