@@ -100,7 +100,9 @@ function renderBody() {
             const grade = student.grades.find(g => g.assignment === assignment.name && g.date === assignment.date);
             if (grade) {
                 const percentage = Math.round((grade.score / grade.max_points) * 100);
-                const gradeClass = getGradeClass(percentage);
+                // Here is your active grade-good / grade-medium / grade-poor logic:
+                const gradeClass = percentage >= 80 ? 'grade-good' : 
+                                   percentage >= 60 ? 'grade-medium' : 'grade-poor';
                 gradeCell.innerHTML = `
                     <div class="grade-score ${gradeClass}">${grade.score}/${grade.max_points}</div>
                     <div class="grade-percentage">${percentage}%</div>
@@ -198,6 +200,8 @@ function formatDate(dateString) {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// Optionally, you can remove this old getGradeClass function or keep it commented out:
+/*
 function getGradeClass(percentage) {
     if (percentage >= 90) return 'grade-A';
     if (percentage >= 80) return 'grade-B';
@@ -205,6 +209,7 @@ function getGradeClass(percentage) {
     if (percentage >= 60) return 'grade-D';
     return 'grade-F';
 }
+*/
 
 function showError(message) {
     const tbody = document.getElementById('tableBody');
