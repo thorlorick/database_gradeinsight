@@ -63,10 +63,28 @@ async def upload_form():
         </head>
         <body>
             <h1>Upload CSV File</h1>
-            <form action="/upload" enctype="multipart/form-data" method="post">
-                <input name="file" type="file" accept=".csv">
+            <form id="uploadForm" action="/upload" enctype="multipart/form-data" method="post">
+                <input name="file" type="file" accept=".csv" required>
                 <input type="submit" value="Upload">
             </form>
+            <script>
+                document.getElementById('uploadForm').addEventListener('submit', async function(event) {
+                    event.preventDefault();
+                    const form = event.target;
+                    const formData = new FormData(form);
+
+                    try {
+                        const response = await fetch('/upload', {
+                            method: 'POST',
+                            body: formData,
+                        });
+                        if (!response.ok) throw new Error('Upload failed');
+                        window.location.href = '/dashboard';  // adjust this path as needed
+                    } catch (err) {
+                        alert('Upload failed: ' + err.message);
+                    }
+                });
+            </script>
         </body>
     </html>
     """
