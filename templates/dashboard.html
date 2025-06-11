@@ -183,6 +183,39 @@
             <a href="/upload" class="nav-button">📤 Upload CSV</a>
         </div>
     </div>
+<h2>Search Student by Email</h2>
+<input type="text" id="emailInput" placeholder="Enter student email">
+<button onclick="searchStudent()">Search</button>
+
+<div id="studentResult"></div>
+
+<script>
+    async function searchStudent() {
+        const email = document.getElementById("emailInput").value.trim().toLowerCase();
+        if (!email) return;
+
+        const res = await fetch(`/api/student/${encodeURIComponent(email)}`);
+        const data = await res.json();
+
+        const resultDiv = document.getElementById("studentResult");
+        resultDiv.innerHTML = '';
+
+        if (res.ok) {
+            resultDiv.innerHTML = `
+                <h3>${data.first_name} ${data.last_name}</h3>
+                <p>Email: ${data.email}</p>
+                <h4>Grades:</h4>
+                <ul>
+                    ${data.grades.map(g => `
+                        <li>${g.assignment} (${g.date || 'No date'}): ${g.score}/${g.max_points}</li>
+                    `).join('')}
+                </ul>
+            `;
+        } else {
+            resultDiv.innerHTML = `<p style="color: red;">${data.detail}</p>`;
+        }
+    }
+</script>
 
     <script>
         // Function to load and display grades
