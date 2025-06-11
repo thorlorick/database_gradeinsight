@@ -94,12 +94,14 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         if df.empty:
             raise HTTPException(status_code=400, detail="CSV file is empty")
 
+        # Clean column names
         df.columns = [str(col).strip() for col in df.columns]
         print("DEBUG: Original columns:", df.columns.tolist())
 
         if len(df) < 4:
             raise HTTPException(status_code=400, detail="CSV must have at least 4 rows")
 
+        # Extract metadata rows
         date_row = df.iloc[0] if len(df) > 1 else None
         points_row = df.iloc[1] if len(df) > 2 else None
         student_df = df.iloc[2:].reset_index(drop=True)
@@ -107,81 +109,107 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         if len(student_df.columns) < 3:
             raise HTTPException(status_code=400, detail="CSV must have at least 3 columns")
 
-        assignment_cols_original = list(student_df.columns[3:])
-        student_df.columns = ['last_name', 'first_name', 'email'] + assignment_cols_original
+        # Get original column names for assignments
+        original_columns = df.columns.tolist()
+        assignment_cols_original = original_columns[3:]  # Skip first 3 columns (student info)
+        
+        # Rename columns for easier processing
+        new_column_names = ['last_name', 'first_name', 'email'] + assignment_cols_original
+        student_df.columns = new_column_names
 
-        # Map new column names to original
-        original_assignment_mapping = dict(zip(assignment_cols_original, df.columns[3:]))
+        print(f"DEBUG: Found {len(assignment_cols_original)} assignment columns")
+        print(f"DEBUG: Assignment columns: {assignment_cols_original}")
 
+        # Validate required columns
         required_columns = {'last_name', 'first_name', 'email'}
         if not required_columns.issubset(student_df.columns):
             missing = required_columns - set(student_df.columns)
             raise HTTPException(status_code=400, detail=f"Missing columns: {list(missing)}")
 
         total_students = len(student_df)
-        threshold = max(1, int(total_students * 0.3))
+        processed_students = 0
         valid_assignments = []
         skipped_assignments = []
 
-        assignment_columns = student_df.columns[3:]
-        print(f"DEBUG: Assignment columns to check: {list(assignment_columns)}")
-
-        for col in assignment_columns:
-            df_col = original_assignment_mapping.get(col, col)
-            if df_col not in df.columns:
-                print(f"DEBUG: Skipping '{col}' - mapped column '{df_col}' not in df.columns")
-                skipped_assignments.append(col)
-                continue
-
-            original_col_index = list(df.columns).index(df_col)
-
-            max_points_val = None
+        # Process each assignment column
+        for i, assignment_name in enumerate(assignment_cols_original):
+            col_index_in_student_df = i + 3  # +3 because first 3 are student info
+            col_index_in_original_df = i + 3  # Same index in original df
+            
             try:
-                if points_row is not None and original_col_index < len(points_row):
-                    max_points_val = points_row.iloc[original_col_index]
-                    if pd.isna(max_points_val) or str(max_points_val).strip() == '':
-                        print(f"DEBUG: Skipping '{col}' - no max points")
-                        skipped_assignments.append(col)
-                        continue
-                    else:
-                        print(f"DEBUG: '{col}' has max points: {max_points_val}")
-                else:
-                    print(f"DEBUG: Skipping '{col}' - no points row")
-                    skipped_assignments.append(col)
+                # Check if we have max points for this assignment
+                max_points_val = None
+                if points_row is not None and col_index_in_original_df < len(points_row):
+                    max_points_val = points_row.iloc[col_index_in_original_df]
+                    
+                # Skip assignments that don't have max points defined
+                if pd.isna(max_points_val) or str(max_points_val).strip() == '':
+                    print(f"DEBUG: Skipping assignment '{assignment_name}' - no max points defined")
+                    skipped_assignments.append(assignment_name)
                     continue
+                else:
+                    try:
+                        max_points_val = float(max_points_val)
+                        print(f"DEBUG: Assignment '{assignment_name}' has max points: {max_points_val}")
+                    except (ValueError, TypeError):
+                        print(f"DEBUG: Skipping assignment '{assignment_name}' - invalid max points value: {max_points_val}")
+                        skipped_assignments.append(assignment_name)
+                        continue
+
+                # Count non-empty grades (less strict check)
+                assignment_col = student_df.iloc[:, col_index_in_student_df]
+                non_empty_count = 0
+                for value in assignment_col:
+                    if pd.notna(value) and str(value).strip() != '' and str(value).strip().lower() != 'nan':
+                        try:
+                            float(value)  # Try to convert to number
+                            non_empty_count += 1
+                        except (ValueError, TypeError):
+                            pass  # Skip non-numeric values
+
+                print(f"DEBUG: Assignment '{assignment_name}' has {non_empty_count} valid grades out of {total_students} students")
+                
+                # More lenient threshold - accept assignments with at least 1 valid grade
+                # or use a lower threshold (e.g., 10% instead of 30%)
+                threshold = max(1, int(total_students * 0.1))  # Reduced from 0.3 to 0.1
+                
+                if non_empty_count >= threshold:
+                    valid_assignments.append(assignment_name)
+                    print(f"DEBUG: Assignment '{assignment_name}' is valid ({non_empty_count} >= {threshold})")
+                else:
+                    skipped_assignments.append(assignment_name)
+                    print(f"DEBUG: Skipping assignment '{assignment_name}' - insufficient data ({non_empty_count} < {threshold})")
+                    
             except Exception as e:
-                print(f"DEBUG: Skipping '{col}' - error: {e}")
-                skipped_assignments.append(col)
+                print(f"DEBUG: Error processing assignment '{assignment_name}': {e}")
+                skipped_assignments.append(assignment_name)
                 continue
 
-            non_empty_count = student_df[col].apply(lambda x: isinstance(x, (int, float)) and not pd.isna(x)).sum()
-            if non_empty_count >= threshold:
-                valid_assignments.append(col)
-                print(f"DEBUG: '{col}' is valid")
-            else:
-                skipped_assignments.append(col)
-                print(f"DEBUG: Skipping '{col}' - below threshold")
+        print(f"DEBUG: Valid assignments: {len(valid_assignments)}")
+        print(f"DEBUG: Skipped assignments: {len(skipped_assignments)}")
 
         if not valid_assignments:
             return JSONResponse(
                 status_code=400,
                 content={
-                    "error": "No assignments meet the 30% threshold requirement",
+                    "error": "No assignments have sufficient data",
                     "total_students": total_students,
-                    "threshold": threshold,
+                    "threshold": max(1, int(total_students * 0.1)),
+                    "all_assignments": assignment_cols_original,
                     "skipped_assignments": skipped_assignments
                 }
             )
 
-        processed_students = 0
-
+        # Process students and their grades
         for index, row in student_df.iterrows():
             email = str(row['email']).strip().lower()
             if not email or email == 'nan':
-                print(f"DEBUG: Skipping row {index} - no email")
+                print(f"DEBUG: Skipping row {index} - invalid email")
                 continue
 
             processed_students += 1
+            
+            # Create or update student
             student = db.query(Student).filter_by(email=email).first()
             if student:
                 student.first_name = str(row['first_name']).strip()
@@ -194,80 +222,101 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                 )
                 db.add(student)
 
-            for col in valid_assignments:
+            # Process grades for valid assignments
+            for assignment_name in valid_assignments:
                 try:
-                    score = row[col]
-                    if pd.isna(score):
+                    # Get the score for this assignment
+                    score_value = row[assignment_name]
+                    
+                    if pd.isna(score_value) or str(score_value).strip() == '' or str(score_value).strip().lower() == 'nan':
+                        continue  # Skip empty scores
+                    
+                    try:
+                        score = float(score_value)
+                    except (ValueError, TypeError):
+                        print(f"DEBUG: Invalid score '{score_value}' for {email}, {assignment_name}")
                         continue
 
-                    df_col = original_assignment_mapping.get(col, col)
-                    original_col_index = list(df.columns).index(df_col)
+                    # Get assignment metadata
+                    assignment_index = assignment_cols_original.index(assignment_name)
+                    original_col_index = assignment_index + 3  # +3 for student info columns
 
+                    # Get assignment date
                     assignment_date = None
                     if date_row is not None and original_col_index < len(date_row):
                         date_val = date_row.iloc[original_col_index]
                         if pd.notna(date_val) and str(date_val).strip() != '':
-                            parsed_date = pd.to_datetime(date_val, errors='coerce')
-                            if pd.notna(parsed_date) and parsed_date.date() != datetime(1970, 1, 1).date():
-                                assignment_date = parsed_date.date()
+                            try:
+                                parsed_date = pd.to_datetime(date_val, errors='coerce')
+                                if pd.notna(parsed_date):
+                                    assignment_date = parsed_date.date()
+                            except:
+                                pass
 
-                    max_points = 100.0
+                    # Get max points (we know it exists because we validated it above)
+                    max_points = max_points_val  # Use the validated value from above
+                    assignment_index = assignment_cols_original.index(assignment_name)
+                    original_col_index = assignment_index + 3
                     if points_row is not None and original_col_index < len(points_row):
                         try:
                             max_val = points_row.iloc[original_col_index]
                             if pd.notna(max_val) and str(max_val).strip() != '':
                                 max_points = float(max_val)
                         except (ValueError, TypeError):
-                            pass
+                            # This shouldn't happen since we validated above, but just in case
+                            max_points = max_points_val
 
+                    # Find or create assignment
                     if assignment_date is None:
                         assignment = db.query(Assignment).filter(
-                            and_(Assignment.name == col, Assignment.date.is_(None))
+                            and_(Assignment.name == assignment_name, Assignment.date.is_(None))
                         ).first()
                     else:
                         assignment = db.query(Assignment).filter_by(
-                            name=col, date=assignment_date
+                            name=assignment_name, date=assignment_date
                         ).first()
 
                     if not assignment:
                         assignment = Assignment(
-                            name=col,
+                            name=assignment_name,
                             date=assignment_date,
                             max_points=max_points
                         )
                         db.add(assignment)
-                        db.flush()
+                        db.flush()  # Get the ID
 
+                    # Create or update grade
                     grade = db.query(Grade).filter_by(
                         email=email,
                         assignment_id=assignment.id
                     ).first()
 
                     if grade:
-                        grade.score = float(score)
+                        grade.score = score
                     else:
                         grade = Grade(
                             email=email,
                             assignment_id=assignment.id,
-                            score=float(score)
+                            score=score
                         )
                         db.add(grade)
 
                 except Exception as e:
-                    print(f"DEBUG: Error processing grade for {email}, {col}: {e}")
+                    print(f"DEBUG: Error processing grade for {email}, {assignment_name}: {e}")
                     continue
 
         db.commit()
         print("DEBUG: Upload committed successfully")
 
         return {
-            "status": f"File {file.filename} uploaded and processed",
+            "status": f"File {file.filename} uploaded and processed successfully",
             "total_students": total_students,
             "processed_students": processed_students,
-            "threshold": threshold,
+            "total_assignments_found": len(assignment_cols_original),
             "valid_assignments": valid_assignments,
             "skipped_assignments": skipped_assignments,
-            "processed_assignments": len(valid_assignments)
+            "processed_assignments": len(valid_assignments),
+            "threshold_used": max(1, int(total_students * 0.1))
         }
 
     except HTTPException:
