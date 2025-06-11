@@ -99,17 +99,18 @@
             font-weight: bold;
         }
         
-        .grade-good {
-            color: #28a745;
-        }
-        
-        .grade-medium {
-            color: #ffc107;
-        }
-        
-        .grade-poor {
-            color: #dc3545;
-        }
+     .grade-good {
+    color: #0b6623;  /* Dark forest green */
+}
+
+.grade-medium {
+    color: #0047ab;  /* Deep blue */
+}
+
+.grade-poor {
+    color: #ff1a1a;  /* Crisp, clean red */
+}
+
         
         .student-info {
             font-weight: bold;
