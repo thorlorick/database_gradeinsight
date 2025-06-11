@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade Insight - Student Portal</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+            padding: 2rem 0;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.1rem;
+        }
+
+        .login-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 2rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-form {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        input[type="email"] {
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 300px;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .grades-section {
+            display: none;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .student-info {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .student-name {
+            font-size: 1.8rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .student-email {
+            color: #666;
+            font-size: 1rem;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+
+        .assignments-table {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow-x: auto;
+        }
+
+        .assignments-table h3 {
+            margin-bottom: 1.5rem;
+            color: #333;
+            font-size: 1.5rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .grade-cell {
+            font-weight: bold;
+        }
+
+        .grade-excellent { color: #28a745; }
+        .grade-good { color: #17a2b8; }
+        .grade-average { color: #ffc107; }
+        .grade-poor { color: #dc3545; }
+        .grade-missing { color: #6c757d; font-style: italic; }
+
+        .progress-bar {
+            background: #e1e5e9;
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .login-form {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            input[type="email"] {
+                width: 100%;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+            }
+        }
+
+        .logout-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background 0.2s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Grade Insight</h1>
+            <p>Student Portal - View your academic progress</p>
+        </div>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <form class="login-form" onsubmit="loadStudentGrades(event)">
+                <div class="form-group">
+                    <label for="studentEmail">Enter your email address:</label>
+                    <input type="email" id="studentEmail" placeholder="student@school.edu" required>
+                </div>
+                <button type="submit" class="btn-primary">View My Grades</button>
+            </form>
+        </div>
+
+        <!-- Grades Section -->
+        <div id="gradesSection" class="grades-section">
+            <button class="logout-btn" onclick="logout()">← Back to Login</button>
+            
+            <div class="student-info">
+                <div class="student-name" id="studentName"></div>
+                <div class="student-email" id="displayEmail"></div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="overallGrade">0%</div>
+                    <div class="stat-label">Overall Grade</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="completedAssignments">0</div>
+                    <div class="stat-label">Completed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="totalAssignments">0</div>
+                    <div class="stat-label">Total Assignments</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="missingAssignments">0</div>
+                    <div class="stat-label">Missing</div>
+                </div>
+            </div>
+
+            <div class="assignments-table">
+                <h3>📋 Assignment Details</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Assignment</th>
+                            <th>Due Date</th>
+                            <th>Points Earned</th>
+                            <th>Total Points</th>
+                            <th>Percentage</th>
+                            <th>Progress</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignmentsTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample data - replace with actual API calls to your FastAPI backend
+        const sampleStudentData = {
+            "john.smith@school.edu": {
+                name: "John Smith",
+                email: "john.smith@school.edu",
+                assignments: [
+                    { name: "Math Quiz 1", dueDate: "2024-03-15", earned: 18, total: 20, submitted: true },
+                    { name: "History Essay", dueDate: "2024-03-20", earned: 85, total: 100, submitted: true },
+                    { name: "Science Lab Report", dueDate: "2024-03-25", earned: 0, total: 50, submitted: false },
+                    { name: "English Presentation", dueDate: "2024-03-30", earned: 42, total: 50, submitted: true },
+                    { name: "Math Quiz 2", dueDate: "2024-04-05", earned: 19, total: 20, submitted: true },
+                    { name: "Art Project", dueDate: "2024-04-10", earned: 95, total: 100, submitted: true }
+                ]
+            },
+            "jane.doe@school.edu": {
+                name: "Jane Doe",
+                email: "jane.doe@school.edu",
+                assignments: [
+                    { name: "Math Quiz 1", dueDate: "2024-03-15", earned: 20, total: 20, submitted: true },
+                    { name: "History Essay", dueDate: "2024-03-20", earned: 92, total: 100, submitted: true },
+                    { name: "Science Lab Report", dueDate: "2024-03-25", earned: 47, total: 50, submitted: true },
+                    { name: "English Presentation", dueDate: "2024-03-30", earned: 48, total: 50, submitted: true },
+                    { name: "Math Quiz 2", dueDate: "2024-04-05", earned: 18, total: 20, submitted: true },
+                    { name: "Art Project", dueDate: "2024-04-10", earned: 0, total: 100, submitted: false }
+                ]
+            }
+        };
+
+        function loadStudentGrades(event) {
+            event.preventDefault();
+            const email = document.getElementById('studentEmail').value.toLowerCase();
+            
+            // In production, this would be an API call to your FastAPI backend
+            // const response = await fetch(`/api/student/${email}`);
+            // const studentData = await response.json();
+            
+            const studentData = sampleStudentData[email];
+            
+            if (!studentData) {
+                alert('Student not found. Please check your email address.');
+                return;
+            }
+
+            displayStudentGrades(studentData);
+        }
+
+        function displayStudentGrades(studentData) {
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('gradesSection').style.display = 'block';
+            
+            document.getElementById('studentName').textContent = studentData.name;
+            document.getElementById('displayEmail').textContent = studentData.email;
+            
+            const assignments = studentData.assignments;
+            const completed = assignments.filter(a => a.submitted).length;
+            const total = assignments.length;
+            const missing = total - completed;
+            
+            const totalEarned = assignments.reduce((sum, a) => sum + (a.submitted ? a.earned : 0), 0);
+            const totalPossible = assignments.reduce((sum, a) => sum + a.total, 0);
+            const overallPercentage = totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
+            
+            document.getElementById('overallGrade').textContent = `${overallPercentage}%`;
+            document.getElementById('completedAssignments').textContent = completed;
+            document.getElementById('totalAssignments').textContent = total;
+            document.getElementById('missingAssignments').textContent = missing;
+            
+            const tableBody = document.getElementById('assignmentsTableBody');
+            tableBody.innerHTML = '';
+            
+            assignments.forEach(assignment => {
+                const row = document.createElement('tr');
+                const percentage = assignment.submitted ? Math.round((assignment.earned / assignment.total) * 100) : 0;
+                const gradeClass = getGradeClass(percentage, assignment.submitted);
+                
+                row.innerHTML = `
+                    <td><strong>${assignment.name}</strong></td>
+                    <td>${formatDate(assignment.dueDate)}</td>
+                    <td class="grade-cell ${gradeClass}">${assignment.submitted ? assignment.earned : 'Not Submitted'}</td>
+                    <td>${assignment.total}</td>
+                    <td class="grade-cell ${gradeClass}">${assignment.submitted ? percentage + '%' : 'Missing'}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${gradeClass}" style="width: ${percentage}%; background-color: ${getProgressColor(percentage, assignment.submitted)};"></div>
+                        </div>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+
+        function getGradeClass(percentage, submitted) {
+            if (!submitted) return 'grade-missing';
+            if (percentage >= 90) return 'grade-excellent';
+            if (percentage >= 80) return 'grade-good';
+            if (percentage >= 70) return 'grade-average';
+            return 'grade-poor';
+        }
+
+        function getProgressColor(percentage, submitted) {
+            if (!submitted) return '#6c757d';
+            if (percentage >= 90) return '#28a745';
+            if (percentage >= 80) return '#17a2b8';
+            if (percentage >= 70) return '#ffc107';
+            return '#dc3545';
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+        }
+
+        function logout() {
+            document.getElementById('gradesSection').style.display = 'none';
+            document.getElementById('loginSection').style.display = 'block';
+            document.getElementById('studentEmail').value = '';
+        }
+
+        // Demo functionality - remove in production
+        document.addEventListener('DOMContentLoaded', function() {
+            const emailInput = document.getElementById('studentEmail');
+            emailInput.addEventListener('input', function() {
+                if (this.value === 'demo' || this.value === 'test') {
+                    this.value = 'john.smith@school.edu';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
