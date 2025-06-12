@@ -10,6 +10,7 @@ body {
     margin: 0;
     padding: 20px;
     background-color: #f5f5f5;
+    min-height: 100vh;
 }
 
 /* Layout */
@@ -22,6 +23,10 @@ body {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
+.main-content {
+    padding: 20px 0;
+}
+
 /* Typography */
 h1 {
     color: #333;
@@ -31,13 +36,29 @@ h1 {
     padding-bottom: 10px;
 }
 
+.header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+.header p {
+    color: #666;
+    font-size: 1.1rem;
+    margin-top: 15px;
+}
+
 /* Navigation */
 .navigation {
     text-align: center;
     margin-bottom: 30px;
 }
 
-.nav-button {
+.nav-button, .back-link {
     display: inline-block;
     margin: 0 10px;
     padding: 12px 24px;
@@ -48,12 +69,16 @@ h1 {
     transition: background-color 0.3s;
 }
 
-.nav-button:hover {
+.nav-button:hover, .back-link:hover {
     background-color: #0056b3;
 }
 
 .nav-button.active {
     background-color: #28a745;
+}
+
+.back-link {
+    margin-bottom: 20px;
 }
 
 /* Search functionality */
@@ -62,28 +87,68 @@ h1 {
     gap: 1rem;
     align-items: center;
     flex-wrap: wrap;
+    margin-bottom: 40px;
 }
 
-.search-input {
+.search-title {
+    font-size: 1.5rem;
+    color: #333;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.search-subtitle {
+    color: #666;
+    margin-bottom: 30px;
+    font-size: 1.1rem;
+}
+
+.search-form {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.search-input, .email-input {
     flex: 1;
     min-width: 300px;
     padding: 0.75rem;
     border: 2px solid #ddd;
     border-radius: 4px;
     font-size: 1rem;
+    background-color: white;
 }
 
-.search-input:focus {
+.search-input:focus, .email-input:focus {
     outline: none;
-    border-color: #3498db;
+    border-color: #007bff;
 }
 
-.search-stats {
-    color: #666;
-    font-size: 0.9rem;
+.search-btn {
+    padding: 0.75rem 1.5rem;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    min-width: 120px;
 }
 
-.clear-search {
+.search-btn:hover {
+    background-color: #0056b3;
+}
+
+.search-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.clear-search, .clear-btn {
     padding: 0.75rem 1rem;
     background-color: #e74c3c;
     color: white;
@@ -91,76 +156,182 @@ h1 {
     border-radius: 4px;
     cursor: pointer;
     font-size: 0.9rem;
+    margin-left: 10px;
 }
 
-.clear-search:hover {
+.clear-search:hover, .clear-btn:hover {
     background-color: #c0392b;
 }
 
-/* Tables */
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
-    background-color: #f5f5f5;
+.search-stats {
+    color: #666;
+    font-size: 0.9rem;
 }
 
-th, td {
-    padding: 12px;
-    text-align: left;
-    border-bottom: 1px solid #ddd;
+.results-section {
+    margin-top: 40px;
+    display: none;
 }
 
-th {
-    background-color: #f8f9fa;
+/* Student header */
+.student-header {
+    background-color: #e9ecef;
+    padding: 25px;
+    border-radius: 5px;
+    margin-bottom: 30px;
+    border: 1px solid #dee2e6;
+}
+
+.student-name {
+    font-size: 1.8rem;
     font-weight: bold;
     color: #333;
+    margin-bottom: 8px;
 }
 
-tr:hover {
-    background-color: #f5f5f5;
-}
-
-/* Grade styling */
-.grade-cell {
-    text-align: center;
-    font-weight: bold;
-}
-
-.grade-good {
-    color: #0b6623;
-}
-
-.grade-medium {
-    color: #0047ab;
-}
-
-.grade-poor {
-    color: #ff1a1a;
-}
-
-/* Student and assignment info */
-.student-info {
-    font-weight: bold;
-}
-
-.assignment-header {
-    text-align: center;
-    min-width: 80px;
+.student-email {
+    color: #666;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
 }
 
 /* Statistics */
-.stats-box {
+.stats-box, .overall-stats {
     background-color: #e9ecef;
     padding: 15px;
     border-radius: 5px;
     margin-bottom: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 20px;
 }
 
-.stats-item {
-    display: inline-block;
-    margin-right: 30px;
+.stats-item, .stat-box {
+    text-align: center;
+    padding: 15px;
+    background-color: white;
+    border-radius: 5px;
+    border: 1px solid #dee2e6;
     font-weight: bold;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    color: #333;
+}
+
+.stat-label {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 5px;
+}
+
+.overall-grade {
+    font-size: 1.5rem;
+    font-weight: bold;
+    padding: 20px;
+    border-radius: 5px;
+    text-align: center;
+    margin: 20px 0;
+    background-color: #f8f9fa;
+    border: 2px solid #dee2e6;
+}
+
+/* Grade ranges */
+.grade-a {
+    background-color: #d4edda;
+    color: #155724;
+    border-color: #c3e6cb;
+}
+
+.grade-b, .grade-c {
+    background-color: #cce7ff;
+    color: #004085;
+    border-color: #b8daff;
+}
+
+.grade-d, .grade-f {
+    background-color: #f8d7da;
+    color: #721c24;
+    border-color: #f5c6cb;
+}
+
+/* Tables */
+.grades-table-container {
+    background-color: #f5f5f5;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid #dee2e6;
+}
+
+.grades-table, table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: #f5f5f5;
+    table-layout: auto;
+}
+
+th, td,
+.grades-table th, .grades-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+    white-space: nowrap;
+}
+
+th, .grades-table th {
+    background-color: #ffd8b3;
+    color: black;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+tr:hover, .grades-table tr:hover {
+    background-color: rgba(40, 167, 69, 0.1);
+}
+
+.grades-table tr:last-child td {
+    border-bottom: none;
+}
+
+.assignment-name {
+    font-weight: bold;
+    color: #333;
+}
+
+.assignment-date {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.score-cell, .percentage-cell, .grade-cell {
+    text-align: center;
+    font-weight: bold;
+}
+
+.percentage-badge {
+    display: inline-block;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+/* Grade coloring */
+.grade-good, .percentage-badge.grade-a {
+    color: #155724;
+    background-color: #d4edda;
+}
+
+.grade-medium, .percentage-badge.grade-b, .percentage-badge.grade-c {
+    color: #004085;
+    background-color: #cce7ff;
+}
+
+.grade-poor, .percentage-badge.grade-d, .percentage-badge.grade-f {
+    color: #721c24;
+    background-color: #f8d7da;
 }
 
 /* Status messages */
@@ -189,48 +360,61 @@ tr:hover {
     border: 1px solid #c3e6cb;
 }
 
-.no-data {
+.no-data, .not-found {
     text-align: center;
     padding: 50px;
     color: #666;
     font-style: italic;
 }
 
-   /* Solution 3: Responsive table with dynamic width */
-        .solution3-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
-            table-layout: auto;
-        }
-        
-        .solution3-table th,
-        .solution3-table td {
-            padding: 8px;
-            text-align: left;
-            border: 1px solid #dee2e6;
-            white-space: nowrap;
-        }
-        
-        .solution3-table th {
-            background-color: #ffd8b3;
-            color: black;
-            position: sticky;
-            top: 0;
-        }
-        
-        .solution3-table tr:hover {
-            background-color: rgba(40, 167, 69, 0.1);
-        }
+.not-found h3 {
+    color: #333;
+    margin-bottom: 10px;
+    font-style: normal;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .search-section {
+    .search-section, .search-form {
         flex-direction: column;
         align-items: stretch;
     }
-    
-    .search-input {
+
+    .email-input, .search-input {
         min-width: auto;
+        width: 100%;
+    }
+
+    .search-btn {
+        width: 100%;
+    }
+
+    .overall-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .grades-table {
+        font-size: 0.9rem;
+    }
+
+    .grades-table th,
+    .grades-table td {
+        padding: 8px;
     }
 }
