@@ -196,6 +196,33 @@ tr:hover {
     font-style: italic;
 }
 
+   /* Solution 3: Responsive table with dynamic width */
+        .solution3-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: linear-gradient(90deg, #f8f9fa 0%, #e9ecef 100%);
+            table-layout: auto;
+        }
+        
+        .solution3-table th,
+        .solution3-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #dee2e6;
+            white-space: nowrap;
+        }
+        
+        .solution3-table th {
+            background-color: #28a745;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        
+        .solution3-table tr:hover {
+            background-color: rgba(40, 167, 69, 0.1);
+        }
+
 /* Responsive design */
 @media (max-width: 768px) {
     .search-section {
