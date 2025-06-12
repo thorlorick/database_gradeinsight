@@ -99,7 +99,10 @@ async def upload_form():
     </html>
     """
 
-
+@app.get("/student-portal.html", response_class=HTMLResponse)
+async def student_portal(request: Request):
+    return templates.TemplateResponse("student-portal.html", {"request": request})
+    
 @app.post("/upload")
 async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
