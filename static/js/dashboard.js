@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', function () {
 async function loadGrades() {
     try {
         const response = await fetch('/api/grades-table');
-        if (!response.ok) throw new Error(HTTP error! status: ${response.status});
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         allStudents = data.students || [];
         filteredStudents = [...allStudents];
@@ -30,7 +30,7 @@ function extractAssignments() {
     const assignmentMap = new Map();
     allStudents.forEach(student => {
         student.grades.forEach(grade => {
-            const key = ${grade.assignment}|${grade.date};
+            const key = `${grade.assignment}|${grade.date}`;
             if (!assignmentMap.has(key)) {
                 assignmentMap.set(key, {
                     name: grade.assignment,
@@ -60,13 +60,13 @@ function renderHeader() {
     assignments.forEach(assignment => {
         const th = document.createElement('th');
         th.className = 'assignment-header';
-        th.innerHTML = 
+        th.innerHTML = `
             <div class="assignment-name">${escapeHtml(assignment.name)}</div>
             <div class="assignment-info">
                 ${assignment.date ? formatDate(assignment.date) : 'No date'} | 
                 ${assignment.max_points} pts
             </div>
-        ;
+        `;
         headerRow.appendChild(th);
     });
 }
@@ -77,9 +77,9 @@ function renderBody() {
     tbody.innerHTML = '';
     if (filteredStudents.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = <td colspan="${assignments.length + 1}" class="no-results">
+        row.innerHTML = `<td colspan="${assignments.length + 1}" class="no-results">
             ${allStudents.length === 0 ? 'No students found in database.' : 'No students match your search.'}
-        </td>;
+        </td>`;
         tbody.appendChild(row);
         return;
     }
@@ -88,10 +88,10 @@ function renderBody() {
         const row = document.createElement('tr');
         const studentCell = document.createElement('td');
         studentCell.className = 'student-info';
-        studentCell.innerHTML = 
-            <div class="student-name">${highlightText(escapeHtml(${student.last_name}, ${student.first_name}))}</div>
+        studentCell.innerHTML = `
+            <div class="student-name">${highlightText(escapeHtml(`${student.last_name}, ${student.first_name}`))}</div>
             <div class="student-email">${highlightText(escapeHtml(student.email))}</div>
-        ;
+        `;
         row.appendChild(studentCell);
 
         assignments.forEach(assignment => {
@@ -103,10 +103,10 @@ function renderBody() {
                 // Here is your active grade-good / grade-medium / grade-poor logic:
                 const gradeClass = percentage >= 80 ? 'grade-good' : 
                                    percentage >= 60 ? 'grade-medium' : 'grade-poor';
-                gradeCell.innerHTML = 
+                gradeCell.innerHTML = `
                     <div class="grade-score ${gradeClass}">${grade.score}/${grade.max_points}</div>
                     <div class="grade-percentage">${percentage}%</div>
-                ;
+                `;
             } else {
                 gradeCell.innerHTML = '<div class="no-grade">—</div>';
             }
@@ -143,8 +143,8 @@ function setupSearch() {
 function filterStudents(query) {
     const searchTerm = query.toLowerCase();
     filteredStudents = allStudents.filter(student => {
-        const fullName = ${student.first_name} ${student.last_name}.toLowerCase();
-        const reverseName = ${student.last_name}, ${student.first_name}.toLowerCase();
+        const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+        const reverseName = `${student.last_name}, ${student.first_name}`.toLowerCase();
         const email = student.email.toLowerCase();
         return fullName.includes(searchTerm) || reverseName.includes(searchTerm) || email.includes(searchTerm);
     });
@@ -166,9 +166,9 @@ function updateSearchStats() {
     const statsElement = document.getElementById('searchStats');
     const searchInput = document.getElementById('studentSearch');
     if (searchInput.value.trim()) {
-        statsElement.textContent = Showing ${filteredStudents.length} of ${allStudents.length} students;
+        statsElement.textContent = `Showing ${filteredStudents.length} of ${allStudents.length} students`;
     } else {
-        statsElement.textContent = ${allStudents.length} students total;
+        statsElement.textContent = `${allStudents.length} students total`;
     }
 }
 
@@ -176,40 +176,9 @@ function updateSearchStats() {
 function highlightText(text) {
     const searchTerm = document.getElementById('studentSearch').value.trim();
     if (!searchTerm) return text;
-    const regex = new RegExp((${escapeRegex(searchTerm)}), 'gi');
+    const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
     return text.replace(regex, '<span class="highlight">$1</span>');
 }
-
-function updateSearchStats() {
-    const statsElement = document.getElementById('searchStats');
-    const searchInput = document.getElementById('studentSearch');
-    const averageElement = document.getElementById('averageScore');
-
-    if (searchInput.value.trim()) {
-        statsElement.textContent = Showing ${filteredStudents.length} of ${allStudents.length} students;
-    } else {
-        statsElement.textContent = ${allStudents.length} students total;
-    }
-
-    // Calculate average
-    let totalScore = 0;
-    let totalMax = 0;
-
-    filteredStudents.forEach(student => {
-        student.grades.forEach(g => {
-            totalScore += g.score;
-            totalMax += g.max_points;
-        });
-    });
-
-    if (totalMax > 0) {
-        const averagePercent = Math.round((totalScore / totalMax) * 100);
-        averageElement.textContent = ${averagePercent}%;
-    } else {
-        averageElement.textContent = '–';
-    }
-}
-
 
 // Utility functions
 function escapeHtml(unsafe) {
@@ -244,17 +213,14 @@ function getGradeClass(percentage) {
 
 function showError(message) {
     const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = 
+    tbody.innerHTML = `
         <tr>
             <td colspan="${assignments.length + 1}" class="error">
                 ${escapeHtml(message)}
             </td>
         </tr>
-    ;
+    `;
 }
 
 // Optional: Refresh data every 5 minutes
 setInterval(loadGrades, 300000);
-
-
-
