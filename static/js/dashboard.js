@@ -255,3 +255,6 @@ function showError(message) {
 
 // Optional: Refresh data every 5 minutes
 setInterval(loadGrades, 300000);
+
+
+
