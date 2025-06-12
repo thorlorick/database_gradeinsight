@@ -265,9 +265,15 @@
         }
 
         // Initialize the student portal when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new StudentGradePortal();
-        });
+      document.addEventListener('DOMContentLoaded', () => {
+    const portal = new StudentGradePortal();
+    const params = new URLSearchParams(window.location.search);
+    const emailFromURL = params.get('email');
+    if (emailFromURL) {
+        portal.emailInput.value = decodeURIComponent(emailFromURL);
+        portal.searchGrades();
+    }
+});
     </script>
 </body>
 </html>
