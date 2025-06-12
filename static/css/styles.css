@@ -206,15 +206,15 @@ tr:hover {
         
         .solution3-table th,
         .solution3-table td {
-            padding: 12px;
+            padding: 8px;
             text-align: left;
             border: 1px solid #dee2e6;
             white-space: nowrap;
         }
         
         .solution3-table th {
-            background-color: #28a745;
-            color: white;
+            background-color: ##ffd8b3;
+            color: black;
             position: sticky;
             top: 0;
         }
