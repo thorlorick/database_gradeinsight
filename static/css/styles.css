@@ -184,7 +184,7 @@ h1 {
 }
 
 .student-name {
-    font-size: 1.8rem;
+    font-size: 0.8rem;
     font-weight: bold;
     color: #333;
     margin-bottom: 8px;
@@ -192,7 +192,7 @@ h1 {
 
 .student-email {
     color: #666;
-    font-size: 1.1rem;
+    font-size: 1.0rem;
     margin-bottom: 20px;
 }
 
