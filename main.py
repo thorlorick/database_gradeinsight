@@ -476,19 +476,34 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Student not found")
 
     grades_list = []
+    total_points = 0
+    max_possible = 0
+
     for grade in student.grades:
         assignment = grade.assignment
-        grades_list.append({
-            "assignment": assignment.name,
-            "date": assignment.date.isoformat() if assignment.date else None,
-            "score": grade.score,
-            "max_points": assignment.max_points
-        })
+        if assignment:
+            score = grade.score or 0
+            max_pts = assignment.max_points or 0
+            total_points += score
+            max_possible += max_pts
+
+            grades_list.append({
+                "assignment": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "score": score,
+                "max_points": max_pts
+            })
+
+    overall_percentage = (total_points / max_possible * 100) if max_possible > 0 else 0
 
     return {
         "email": student.email,
         "first_name": student.first_name,
         "last_name": student.last_name,
+        "total_points": total_points,
+        "max_possible": max_possible,
+        "overall_percentage": overall_percentage,
+        "total_assignments": len(grades_list),
         "grades": grades_list
     }
 
