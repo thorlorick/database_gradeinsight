@@ -582,51 +582,7 @@ def get_assignments(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
 
-@app.get("/api/student/{email}")
-def get_student_details(email: str, db: Session = Depends(get_db)):
-    """Get detailed information for a specific student"""
-    try:
-        student = db.query(Student).filter_by(email=email.lower()).first()
-        if not student:
-            raise HTTPException(status_code=404, detail="Student not found")
-        
-        grades_list = []
-        total_points = 0
-        max_possible = 0
-        
-        for grade in student.grades:
-            assignment = grade.assignment
-            grade_info = {
-                "assignment": assignment.name,
-                "date": assignment.date.isoformat() if assignment.date else None,
-                "max_points": assignment.max_points,
-                "score": grade.score,
-                "percentage": round((grade.score / assignment.max_points) * 100, 1) if assignment.max_points > 0 else 0
-            }
-            grades_list.append(grade_info)
-            total_points += grade.score
-            max_possible += assignment.max_points
-        
-        # Sort grades by date, then by assignment name
-        grades_list.sort(key=lambda x: (x['date'] or '', x['assignment']))
-        
-        overall_percentage = round((total_points / max_possible) * 100, 1) if max_possible > 0 else 0
-        
-        return {
-            "email": student.email,
-            "first_name": student.first_name,
-            "last_name": student.last_name,
-            "grades": grades_list,
-            "total_assignments": len(grades_list),
-            "total_points": total_points,
-            "max_possible": max_possible,
-            "overall_percentage": overall_percentage
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving student details: {str(e)}")
+
 
 # Don't forget to add these imports at the top of your main.py file:
 # from sqlalchemy import or_, func
