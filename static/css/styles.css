@@ -18,7 +18,7 @@ body {
     margin: 0 auto;
     background-color: #f5f5f5;
     padding: 30px;
-    border-radius: 0px;
+    border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
@@ -213,7 +213,7 @@ tr:hover {
         }
         
         .solution3-table th {
-            background-color: ##ffd8b3;
+            background-color: #ffbe80;
             color: black;
             position: sticky;
             top: 0;
