@@ -469,12 +469,11 @@ def get_students_list(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving students list: {str(e)}")
 
-@app.get("/api/student/{email:path}")
+@app.get("/api/student/{email}")
 def get_student_by_email(email: str, db: Session = Depends(get_db)):
     student = db.query(Student).filter_by(email=email.lower().strip()).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
-    return student
 
     grades_list = []
     total_points = 0
@@ -507,6 +506,7 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
         "total_assignments": len(grades_list),
         "grades": grades_list
     }
+
 
 # Add these endpoints to your main.py file
 
