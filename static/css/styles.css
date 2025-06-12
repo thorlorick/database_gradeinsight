@@ -176,6 +176,7 @@ h1 {
 
 /* Student header */
 .student-header {
+    font-size: 1.7rem;
     background-color: #e9ecef;
     padding: 25px;
     border-radius: 5px;
@@ -184,7 +185,7 @@ h1 {
 }
 
 .student-name {
-    font-size: 0.8rem;
+    font-size: 1.2rem;
     font-weight: bold;
     color: #333;
     margin-bottom: 8px;
@@ -192,8 +193,8 @@ h1 {
 
 .student-email {
     color: #666;
-    font-size: 1.0rem;
-    margin-bottom: 10px;
+    font-size: 0.8rem;
+    margin-bottom: 3px;
 }
 
 /* Statistics */
