@@ -42,8 +42,8 @@ def get_db():
         db.close()
 
 @app.get("/")
-def read_root():
-    return {"message": "Grade Insight is running"}
+async def root():
+    return RedirectResponse(url="/dashboard")
 
 app.include_router(downloadTemplate_router) #trying to refactor endpoints. this one is to download the template from the dashboard
 
