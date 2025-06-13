@@ -38,7 +38,12 @@ Teachers can upload grades using either:
 
 ### CSV Structure
 
-
+last_name,first_name,email,Assignment 1,Assignment 2,Assignment 3 (etc.)
+DATE,-,-,2025-06-01,2025-06-03,2025-06-05
+POINTS,-,-,100,100,100
+Smith,Alice,alice.smith@example.com,85,90,78
+Johnson,Bob,bob.johnson@example.com,88,92,81
+Brown,Charlie,charlie.brown@example.com,92,85,89
 
 ### Data Processing Pipeline
 
