@@ -168,7 +168,7 @@ class GradesTable {
         row.style.cursor = 'pointer';
         row.classList.add('clickable-row');
         row.addEventListener('click', () => this.navigateToStudent(student));
-        
+  /*      
         // Add hover effects
         row.addEventListener('mouseenter', function() {
             this.style.backgroundColor = '#f0f8ff';
@@ -180,6 +180,17 @@ class GradesTable {
             this.style.backgroundColor = '';
             this.style.transform = '';
         });
+*/
+        row.addEventListener('mouseenter', function() {
+    this.style.backgroundColor = '#d4edda'; // light green
+    this.style.transform = ''; // no scaling, so no movement
+    this.style.transition = 'background-color 0.2s ease';
+});
+
+row.addEventListener('mouseleave', function() {
+    this.style.backgroundColor = '';
+});
+
 
         // Student info cell
         const studentCell = document.createElement('td');
