@@ -1,7 +1,8 @@
 import io
 import os
 import pandas as pd
-from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException
+import traceback
+from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException, Router
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -12,7 +13,8 @@ from models import Student, Assignment, Grade
 from datetime import datetime
 from sqlalchemy import and_
 from sqlalchemy import or_, func
-import traceback
+from download-template import router as download-template-router
+
 
 app = FastAPI()
 
@@ -43,16 +45,9 @@ def get_db():
 def read_root():
     return {"message": "Grade Insight is running"}
 
-@app.get("/download-template")
-def download_template():
-    file_path = "template.csv"
-    if os.path.exists(file_path):
-        return FileResponse(path=file_path, filename="grade_insight_template.csv", media_type='text/csv')
-    else:
-        return JSONResponse(
-            status_code=404,
-            content={"error": "Template file not found."}
-        )
+app.include_router(download-template-router) #trying to refactor endpoints. this one is to download the template from the dashboard
+
+
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_form():
     return """
