@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
-@router.get("/download-template")
+@router.get("/downloadTemplate")
 def download_template():
     file_path = "template.csv"
     if os.path.exists(file_path):
