@@ -13,7 +13,7 @@ from models import Student, Assignment, Grade
 from datetime import datetime
 from sqlalchemy import and_
 from sqlalchemy import or_, func
-from download-template import router as download-template-router
+from downloadTemplate import router as downloadTemplate_router
 
 
 app = FastAPI()
@@ -45,7 +45,7 @@ def get_db():
 def read_root():
     return {"message": "Grade Insight is running"}
 
-app.include_router(download-template-router) #trying to refactor endpoints. this one is to download the template from the dashboard
+app.include_router(downloadTemplate_router) #trying to refactor endpoints. this one is to download the template from the dashboard
 
 
 @app.get("/upload", response_class=HTMLResponse)
