@@ -81,10 +81,8 @@ class GradesTable {
     }
 
     init() {
-        document.addEventListener('DOMContentLoaded', () => {
-            this.loadGrades();
-            this.setupSearch();
-        });
+        this.loadGrades();
+        this.setupSearch();
     }
 
     async loadGrades() {
@@ -487,9 +485,9 @@ class StudentGradePortal {
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('tableHeader')) {
         // Grades table page
-        new GradesTable();
+        const gradesTable = new GradesTable();
         // Optional: Refresh data every 5 minutes
-        setInterval(() => new GradesTable().loadGrades(), 300000);
+        setInterval(() => gradesTable.loadGrades(), 300000);
     } else if (document.getElementById('emailInput')) {
         // Student portal page
         new StudentGradePortal();
