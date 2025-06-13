@@ -2,7 +2,7 @@ import io
 import os
 import pandas as pd
 import traceback
-from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException, Router
+from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException, APIRouter
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
