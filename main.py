@@ -112,9 +112,9 @@ async def student_portal_redirect(request: Request):
 
 @app.get("/teacher-student-view", response_class=HTMLResponse)
 async def student_portal_redirect(request: Request):
-    """Main student portal route that matches the navigation link"""
+    """Main tecaher-student-view that matches the navigation link"""
     try:
-        return templates.TemplateResponse("teacher-student.html.html", {"request": request})
+        return templates.TemplateResponse("teacher-student-view.html", {"request": request})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading student portal: {str(e)}")
 @app.post("/upload")
