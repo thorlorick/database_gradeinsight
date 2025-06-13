@@ -220,7 +220,7 @@ class GradesTable {
 
     navigateToStudent(student) {
         if (student.email) {
-            window.location.href = `/student-portal?email=${encodeURIComponent(student.email)}`;
+            window.location.href = `/teacher-student-view?email=${encodeURIComponent(student.email)}`;
         } else {
             console.error('Student email not found:', student);
             alert('Unable to navigate to student profile - email not found.');
