@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 router = APIRouter()
 
-@router.get("/downloadTemplate")
+@router.get("/api/downloadTemplate")
 def download_template():
     file_path = "template.csv"
     if os.path.exists(file_path):
