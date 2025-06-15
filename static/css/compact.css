@@ -502,13 +502,13 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
 
 /* Sticky first column (student names) */
 .grades-table tbody td:first-child {
-    position: sticky;
+/*    position: sticky; */
     left: 0;
     background-color: white;
     z-index: 5;
     border-right: 1px solid #e5e7eb;
     font-weight: 600; /* Make student names stand out */
-    font-size: 0.8rem;
+    font-size: 0.2rem;
 }
 
 .grades-table tbody tr:nth-child(even) td:first-child {
