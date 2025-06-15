@@ -508,7 +508,7 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
     z-index: 5;
     border-right: 1px solid #e5e7eb;
     font-weight: 600; /* Make student names stand out */
-    font-size: 0.2rem;
+    font-size: 0.8rem;
 }
 
 .grades-table tbody tr:nth-child(even) td:first-child {
