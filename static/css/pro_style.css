@@ -306,7 +306,21 @@ h1 {
     border-color: #dc2626;
 }
 
-/* Tables */
+/* ===== SCROLLABLE TABLE STYLES ===== */
+/* Main scrollable wrapper */
+.table-wrapper {
+    /* Set a fixed height for the scrollable area */
+    height: 500px; /* Adjust this value based on your needs */
+    max-height: 60vh; /* Responsive height option */
+    overflow: auto;
+    position: relative;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    background: white;
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+}
+
+/* Tables - Updated for scrollable functionality */
 .grades-table-container {
     background-color: white;
     border-radius: 12px;
@@ -320,6 +334,17 @@ h1 {
     border-collapse: collapse;
     background-color: white;
     table-layout: auto;
+    /* Updated for scrollable tables */
+    font-size: 0.875rem;
+    min-width: 100%;
+}
+
+/* Sticky header functionality */
+.grades-table thead {
+    /* Sticky header stays at top while scrolling */
+    position: sticky;
+    top: 0;
+    z-index: 10;
 }
 
 th, td,
@@ -333,16 +358,29 @@ th, td,
 }
 
 th, .grades-table th {
-    background-color: #f8fafc;
-    color: #1e293b;
+    /* Updated header styling for scrollable tables */
+    background-color: #2563eb; /* Primary blue */
+    color: white;
     font-weight: 600;
     position: sticky;
     top: 0;
-    border-bottom: 2px solid #e5e7eb;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    padding: 0.75rem;
+    white-space: nowrap;
 }
 
-tr:hover, .grades-table tr:hover {
-    background-color: #f8fafc;
+/* Row hover effects - Updated */
+tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+/* Zebra striping for better readability */
+.grades-table tbody tr:nth-child(even) {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.grades-table tbody tr:nth-child(even):hover {
+    background-color: #f9fafb;
 }
 
 .grades-table tr:last-child td {
@@ -362,6 +400,33 @@ tr:hover, .grades-table tr:hover {
 .score-cell, .percentage-cell, .grade-cell {
     text-align: center;
     font-weight: 600;
+}
+
+/* Grade cell styling - Enhanced */
+.grade-cell {
+    text-align: center;
+    font-weight: 500;
+}
+
+.grade-high {
+    color: #059669;
+    background-color: rgba(5, 150, 105, 0.1);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.grade-medium {
+    color: #d97706;
+    background-color: rgba(217, 119, 6, 0.1);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.grade-low {
+    color: #dc2626;
+    background-color: rgba(220, 38, 38, 0.1);
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
 }
 
 .percentage-badge {
@@ -403,12 +468,60 @@ tr:hover, .grades-table tr:hover {
     border: 1px solid #fecaca;
 }
 
+/* Custom scrollbar styling */
+.table-wrapper::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+    background: #f3f4f6;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #4b5563;
+}
+
+/* Student info column (first column) styling */
+.student-info {
+    position: sticky;
+    left: 0;
+    background-color: #2563eb; /* Match header color */
+    z-index: 11; /* Higher than regular header */
+}
+
+/* Optional: Make first column (student names) sticky horizontally */
+.grades-table tbody td:first-child {
+    position: sticky;
+    left: 0;
+    background-color: white;
+    z-index: 5;
+    border-right: 1px solid #e5e7eb;
+}
+
+.grades-table tbody tr:nth-child(even) td:first-child {
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.grades-table tbody tr:hover td:first-child {
+    background-color: #f9fafb;
+}
+
 /* Status messages */
 .loading {
     text-align: center;
     padding: 64px;
     font-size: 18px;
     color: #64748b;
+    /* Updated for scrollable tables */
+    color: #6b7280;
+    font-style: italic;
+    padding: 2rem;
 }
 
 .error {
@@ -497,5 +610,17 @@ tr:hover, .grades-table tr:hover {
     .grades-table th,
     .grades-table td {
         padding: 12px 8px;
+    }
+
+    /* Responsive adjustments for scrollable tables */
+    .table-wrapper {
+        height: 400px;
+        max-height: 50vh;
+    }
+    
+    .grades-table th,
+    .grades-table td {
+        padding: 0.5rem;
+        font-size: 0.8rem;
     }
 }
