@@ -211,16 +211,16 @@ h1 {
 }
 
 .student-name {
-    font-size: 1.0rem;
+    font-size: 0.75rem;
     font-weight: 700;
     color: #1e293b;
-    margin-bottom: 12px;
+    margin-bottom: 5px;
 }
 
 .student-email {
     color: #64748b;
-    font-size: 16px;
-    margin-bottom: 8px;
+    font-size: 9px;
+    margin-bottom: 3px;
 }
 
 /* Statistics */
