@@ -23,7 +23,7 @@
                     type="text" 
                     id="studentSearch" 
                     class="search-input" 
-                    placeholder="Search by student name or email..."
+                    placeholder="Search by student name, email, or tags..."
                     autocomplete="off"
                 >
                 <button id="clearSearch" class="clear-search" style="display: none;">Clear Search</button>
@@ -54,7 +54,143 @@
 </div>
 -->
    <script src="/static/js/shared-utils.js"></script> 
+   <script>
+   // Enhanced search functionality for both students and tags
+   document.addEventListener('DOMContentLoaded', function() {
+       const searchInput = document.getElementById('studentSearch');
+       const clearButton = document.getElementById('clearSearch');
+       const searchStats = document.getElementById('searchStats');
+       
+       let originalTableData = []; // Store original data
+       
+       // Enhanced search function
+       function performSearch(searchTerm) {
+           if (!searchTerm.trim()) {
+               // If empty search, show all data
+               restoreOriginalTable();
+               updateSearchStats('');
+               return;
+           }
+           
+           const lowerSearchTerm = searchTerm.toLowerCase();
+           const tableBody = document.getElementById('tableBody');
+           const rows = Array.from(tableBody.querySelectorAll('tr'));
+           
+           let visibleStudents = 0;
+           let matchingAssignments = 0;
+           
+           rows.forEach(row => {
+               const studentCell = row.querySelector('.student-info, td:first-child');
+               if (!studentCell) return;
+               
+               const studentText = studentCell.textContent.toLowerCase();
+               let hasStudentMatch = studentText.includes(lowerSearchTerm);
+               let hasTagMatch = false;
+               
+               // Check for tag matches in grade cells
+               const gradeCells = row.querySelectorAll('td:not(:first-child)');
+               gradeCells.forEach(cell => {
+                   const cellText = cell.textContent.toLowerCase();
+                   const cellTitle = (cell.getAttribute('title') || '').toLowerCase();
+                   
+                   // Check if search term matches tags in title or cell content
+                   if (cellText.includes(lowerSearchTerm) || cellTitle.includes(lowerSearchTerm)) {
+                       hasTagMatch = true;
+                       matchingAssignments++;
+                       // Highlight matching cells
+                       cell.style.backgroundColor = '#fff3cd';
+                       cell.style.border = '2px solid #ffc107';
+                   } else {
+                       // Remove highlighting
+                       cell.style.backgroundColor = '';
+                       cell.style.border = '';
+                   }
+               });
+               
+               // Show row if student name/email matches OR if any assignment tags match
+               if (hasStudentMatch || hasTagMatch) {
+                   row.style.display = '';
+                   visibleStudents++;
+                   
+                   // Highlight student name if it matches
+                   if (hasStudentMatch) {
+                       studentCell.style.backgroundColor = '#d4edda';
+                       studentCell.style.border = '2px solid #28a745';
+                   } else {
+                       studentCell.style.backgroundColor = '';
+                       studentCell.style.border = '';
+                   }
+               } else {
+                   row.style.display = 'none';
+               }
+           });
+           
+           updateSearchStats(searchTerm, visibleStudents, matchingAssignments);
+       }
+       
+       function updateSearchStats(searchTerm, visibleStudents = 0, matchingAssignments = 0) {
+           if (!searchTerm) {
+               searchStats.textContent = '';
+               return;
+           }
+           
+           let statsText = `Found: ${visibleStudents} student(s)`;
+           if (matchingAssignments > 0) {
+               statsText += `, ${matchingAssignments} assignment match(es)`;
+           }
+           searchStats.textContent = statsText;
+       }
+       
+       function restoreOriginalTable() {
+           const tableBody = document.getElementById('tableBody');
+           const rows = Array.from(tableBody.querySelectorAll('tr'));
+           
+           rows.forEach(row => {
+               row.style.display = '';
+               
+               // Remove all highlighting
+               const allCells = row.querySelectorAll('td');
+               allCells.forEach(cell => {
+                   cell.style.backgroundColor = '';
+                   cell.style.border = '';
+               });
+           });
+       }
+       
+       // Search input event listener
+       searchInput.addEventListener('input', function() {
+           const searchTerm = this.value;
+           
+           if (searchTerm) {
+               clearButton.style.display = 'inline-block';
+           } else {
+               clearButton.style.display = 'none';
+           }
+           
+           performSearch(searchTerm);
+       });
+       
+       // Clear search button
+       clearButton.addEventListener('click', function() {
+           searchInput.value = '';
+           clearButton.style.display = 'none';
+           restoreOriginalTable();
+           updateSearchStats('');
+           searchInput.focus();
+       });
+       
+       // Store original table data when page loads
+       // This should be called after your existing table loading logic
+       function storeOriginalData() {
+           const tableBody = document.getElementById('tableBody');
+           originalTableData = tableBody.innerHTML;
+       }
+       
+       // Call this after your table is populated
+       // You may need to integrate this with your existing JavaScript
+       setTimeout(storeOriginalData, 1000); // Adjust timing as needed
+   });
+   </script>
    
 </body>
 </html>
-
