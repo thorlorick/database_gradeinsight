@@ -1067,7 +1067,7 @@ def search_assignments(
           grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
             
             # Get tags for this assignment - with error handling
-            tags = []
+        tags = []
             try:
                 for tag in assignment.tags:
                     tags.append({
