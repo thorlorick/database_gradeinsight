@@ -7,12 +7,16 @@
     <form id="uploadForm">
         <input id="fileInput" name="file" type="file" accept=".csv" required>
         <div>
-            <label for="tagSelect">Tags:</label>
+            <label for="tagSelect">Existing Tags:</label>
             <select id="tagSelect" name="tags" multiple>
                 {% for tag in tags %}
                     <option value="{{ tag.id }}">{{ tag.name }}</option>
                 {% endfor %}
             </select>
+        </div>
+        <div>
+            <label for="newTags">Add New Tags (comma separated):</label>
+            <input type="text" id="newTags" name="new_tags" placeholder="e.g. Project, Extra Credit">
         </div>
         <input type="submit" value="Upload">
     </form>
@@ -24,6 +28,7 @@
         const loadingMessage = document.getElementById('loadingMessage');
         const fileInput = document.getElementById('fileInput');
         const tagSelect = document.getElementById('tagSelect');
+        const newTagsInput = document.getElementById('newTags');
 
         form.addEventListener('submit', async function(event) {
             event.preventDefault();
@@ -31,9 +36,11 @@
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
-            // Add selected tags as JSON string
+            // Existing tags
             const selectedTags = Array.from(tagSelect.selectedOptions).map(opt => opt.value);
             formData.append('tags', JSON.stringify(selectedTags));
+            // New tags
+            formData.append('new_tags', newTagsInput.value);
 
             try {
                 const response = await fetch('/upload', {
