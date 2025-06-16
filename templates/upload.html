@@ -6,7 +6,6 @@
     <h1>Upload CSV File</h1>
     <form id="uploadForm">
         <input id="fileInput" name="file" type="file" accept=".csv" required>
-        <!-- Tag selection UI -->
         <div>
             <label for="tagSelect">Tags:</label>
             <select id="tagSelect" name="tags" multiple>
@@ -32,7 +31,7 @@
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
-            // Add selected tags
+            // Add selected tags as JSON string
             const selectedTags = Array.from(tagSelect.selectedOptions).map(opt => opt.value);
             formData.append('tags', JSON.stringify(selectedTags));
 
