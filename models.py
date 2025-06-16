@@ -18,16 +18,6 @@ class Student(Base):
     student_number = Column(String, nullable=True)  # optional or legacy field
     grades = relationship("Grade", back_populates="student")
 
-class Tag(Base):
-    __tablename__ = 'tags'
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, unique=True, nullable=False, index=True)
-    color = Column(String, default='#3B82F6')  # Default blue color
-    description = Column(String, nullable=True)
-    
-    # Many-to-many relationship with assignments
-    assignments = relationship("Assignment", secondary=assignment_tags, back_populates="tags")
-
 class Assignment(Base):
     __tablename__ = 'assignments'
     id = Column(Integer, primary_key=True, index=True)
@@ -35,8 +25,6 @@ class Assignment(Base):
     date = Column(Date, nullable=True)
     max_points = Column(Float, nullable=False)
     grades = relationship("Grade", back_populates="assignment")
-    
-    # Many-to-many relationship with tags
     tags = relationship("Tag", secondary=assignment_tags, back_populates="assignments")
 
 class Grade(Base):
@@ -48,3 +36,9 @@ class Grade(Base):
 
     student = relationship("Student", back_populates="grades")
     assignment = relationship("Assignment", back_populates="grades")
+
+class Tag(Base):
+    __tablename__ = 'tags'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False)
+    assignments = relationship("Assignment", secondary=assignment_tags, back_populates="tags")
