@@ -391,7 +391,7 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
 
 .assignment-name {
     font-weight: 600;
-    color: #64748b;
+    color: #fff;
     font-size: 0.8rem; /* Compact font size */
 }
 
@@ -512,7 +512,7 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
 } */
 
 .grades-table tbody td:first-child {
-    position: sticky;  Uncomment if you want sticky first column 
+    position: sticky;   
     left: 0;
     background-color: #d9dddf;   
     color: #0a0a0a;                 
