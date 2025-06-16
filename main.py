@@ -2,35 +2,20 @@ import io
 import os
 import pandas as pd
 import traceback
-from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException, APIRouter
+import json
+from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException, APIRouter, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from database import Base, engine, SessionLocal
-from models import Student, Assignment, Grade, Tag
+from models import Student, Assignment, Grade, Tag  # Add Tag import
 from datetime import datetime
 from sqlalchemy import and_
 from sqlalchemy import or_, func
-from pydantic import BaseModel
-from typing import List, Optional
 from downloadTemplate import router as downloadTemplate_router
-from uploadCSV import router as uploadCSV_router
-
-# Pydantic models for request bodies
-class TagCreate(BaseModel):
-    name: str
-    color: Optional[str] = '#3B82F6'
-    description: Optional[str] = None
-
-class TagUpdate(BaseModel):
-    name: Optional[str] = None
-    color: Optional[str] = None
-    description: Optional[str] = None
-
-class AssignmentTagUpdate(BaseModel):
-    tag_ids: List[int]
+from typing import Optional
 
 app = FastAPI()
 
@@ -63,10 +48,21 @@ async def root():
 
 app.include_router(downloadTemplate_router) #trying to refactor endpoints. this one is to download the template from the dashboard
 
-app.include_router(uploadCSV_router) #trying to refactor endpoints. this one is to upload the template to the dashboard
+@app.get("/upload", response_class=HTMLResponse)
+async def upload_form(request: Request, db: Session = Depends(get_db)):
+    """Serve the upload form with existing tags"""
+    try:
+        # Get existing tags from database
+        tags = db.query(Tag).all()
+        return templates.TemplateResponse("upload.html", {
+            "request": request,
+            "tags": tags
+        })
+    except Exception as e:
+        print(f"Error loading upload form: {e}")
+        raise HTTPException(status_code=500, detail=f"Error loading upload form: {str(e)}")
 
 # Add this route to your main.py file to fix the student portal navigation
-
 @app.get("/student-portal", response_class=HTMLResponse)
 async def student_portal_redirect(request: Request):
     """Main student portal route that matches the navigation link"""
@@ -76,21 +72,41 @@ async def student_portal_redirect(request: Request):
         raise HTTPException(status_code=500, detail=f"Error loading student portal: {str(e)}")
 
 @app.get("/teacher-student-view", response_class=HTMLResponse)
-async def teacher_student_view(request: Request):  # Fixed function name
-    """Main teacher-student-view that matches the navigation link"""
+async def student_portal_redirect(request: Request):
+    """Main tecaher-student-view that matches the navigation link"""
     try:
         return templates.TemplateResponse("teacher-student-view.html", {"request": request})
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading teacher student view: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error loading student portal: {str(e)}")
 
 @app.post("/upload")
-async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def handle_upload(
+    file: UploadFile = File(...), 
+    tags: Optional[str] = Form(None),
+    new_tags: Optional[str] = Form(None),
+    db: Session = Depends(get_db)
+):
     try:
         if not file.filename.endswith('.csv'):
             raise HTTPException(status_code=400, detail="Only CSV files are allowed")
 
         contents = await file.read()
         print("DEBUG: File received:", file.filename)
+
+        # Parse tags from form data
+        selected_tag_ids = []
+        if tags:
+            try:
+                selected_tag_ids = json.loads(tags)
+                print(f"DEBUG: Selected tag IDs: {selected_tag_ids}")
+            except json.JSONDecodeError:
+                print("DEBUG: Failed to parse tags JSON")
+
+        # Parse new tags
+        new_tag_names = []
+        if new_tags:
+            new_tag_names = [name.strip() for name in new_tags.split(',') if name.strip()]
+            print(f"DEBUG: New tag names: {new_tag_names}")
 
         try:
             csv_io = io.StringIO(contents.decode("utf-8"))
@@ -144,6 +160,34 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         valid_assignments = []
         skipped_assignments = []
 
+        # Process tags first
+        assignment_tags = []
+        
+        # Get existing tags
+        for tag_id in selected_tag_ids:
+            try:
+                tag = db.query(Tag).filter_by(id=int(tag_id)).first()
+                if tag:
+                    assignment_tags.append(tag)
+                    print(f"DEBUG: Added existing tag: {tag.name}")
+            except (ValueError, TypeError):
+                print(f"DEBUG: Invalid tag ID: {tag_id}")
+
+        # Create new tags
+        for tag_name in new_tag_names:
+            # Check if tag already exists
+            existing_tag = db.query(Tag).filter(func.lower(Tag.name) == tag_name.lower()).first()
+            if existing_tag:
+                if existing_tag not in assignment_tags:
+                    assignment_tags.append(existing_tag)
+                    print(f"DEBUG: Using existing tag: {existing_tag.name}")
+            else:
+                new_tag = Tag(name=tag_name)
+                db.add(new_tag)
+                db.flush()  # Get the ID
+                assignment_tags.append(new_tag)
+                print(f"DEBUG: Created new tag: {new_tag.name}")
+
         # Process each assignment column
         for i, assignment_name in enumerate(assignment_cols_original):
             col_index_in_student_df = i + 3  # +3 because first 3 are student info
@@ -187,7 +231,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                 threshold = max(1, int(total_students * 0.1))  # Reduced from 0.3 to 0.1
                 
                 if non_empty_count >= threshold:
-                    valid_assignments.append((assignment_name, max_points_val))  # Store as tuple
+                    valid_assignments.append(assignment_name)
                     print(f"DEBUG: Assignment '{assignment_name}' is valid ({non_empty_count} >= {threshold})")
                 else:
                     skipped_assignments.append(assignment_name)
@@ -214,6 +258,8 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
             )
 
         # Process students and their grades
+        created_assignments = {}  # Keep track of created assignments
+        
         for index, row in student_df.iterrows():
             email = str(row['email']).strip().lower()
             if not email or email == 'nan':
@@ -236,7 +282,7 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                 db.add(student)
 
             # Process grades for valid assignments
-            for assignment_name, max_points_val in valid_assignments:  # Unpack tuple
+            for assignment_name in valid_assignments:
                 try:
                     # Get the score for this assignment
                     score_value = row[assignment_name]
@@ -250,10 +296,11 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                         print(f"DEBUG: Invalid score '{score_value}' for {email}, {assignment_name}")
                         continue
 
-                    # Get assignment date
+                    # Get assignment metadata
                     assignment_index = assignment_cols_original.index(assignment_name)
                     original_col_index = assignment_index + 3  # +3 for student info columns
 
+                    # Get assignment date
                     assignment_date = None
                     if date_row is not None and original_col_index < len(date_row):
                         date_val = date_row.iloc[original_col_index]
@@ -265,24 +312,51 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
                             except:
                                 pass
 
-                    # Find or create assignment
-                    if assignment_date is None:
-                        assignment = db.query(Assignment).filter(
-                            and_(Assignment.name == assignment_name, Assignment.date.is_(None))
-                        ).first()
-                    else:
-                        assignment = db.query(Assignment).filter_by(
-                            name=assignment_name, date=assignment_date
-                        ).first()
+                    # Get max points
+                    max_points = max_points_val  # Use the validated value from above
+                    assignment_index = assignment_cols_original.index(assignment_name)
+                    original_col_index = assignment_index + 3
+                    if points_row is not None and original_col_index < len(points_row):
+                        try:
+                            max_val = points_row.iloc[original_col_index]
+                            if pd.notna(max_val) and str(max_val).strip() != '':
+                                max_points = float(max_val)
+                        except (ValueError, TypeError):
+                            # This shouldn't happen since we validated above, but just in case
+                            max_points = max_points_val
 
-                    if not assignment:
-                        assignment = Assignment(
-                            name=assignment_name,
-                            date=assignment_date,
-                            max_points=max_points_val  # Use the validated value
-                        )
-                        db.add(assignment)
-                        db.flush()  # Get the ID
+                    # Create assignment key for tracking
+                    assignment_key = (assignment_name, assignment_date)
+                    
+                    if assignment_key not in created_assignments:
+                        # Find or create assignment
+                        if assignment_date is None:
+                            assignment = db.query(Assignment).filter(
+                                and_(Assignment.name == assignment_name, Assignment.date.is_(None))
+                            ).first()
+                        else:
+                            assignment = db.query(Assignment).filter_by(
+                                name=assignment_name, date=assignment_date
+                            ).first()
+
+                        if not assignment:
+                            assignment = Assignment(
+                                name=assignment_name,
+                                date=assignment_date,
+                                max_points=max_points
+                            )
+                            db.add(assignment)
+                            db.flush()  # Get the ID
+                            
+                            # Add tags to the assignment
+                            for tag in assignment_tags:
+                                assignment.tags.append(tag)
+                            
+                            print(f"DEBUG: Created assignment '{assignment_name}' with {len(assignment_tags)} tags")
+                        
+                        created_assignments[assignment_key] = assignment
+                    else:
+                        assignment = created_assignments[assignment_key]
 
                     # Create or update grade
                     grade = db.query(Grade).filter_by(
@@ -307,15 +381,20 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         db.commit()
         print("DEBUG: Upload committed successfully")
 
+        # Prepare response with tag information
+        tag_names = [tag.name for tag in assignment_tags]
+
         return {
             "status": f"File {file.filename} uploaded and processed successfully",
             "total_students": total_students,
             "processed_students": processed_students,
             "total_assignments_found": len(assignment_cols_original),
-            "valid_assignments": [name for name, _ in valid_assignments],  # Extract names
+            "valid_assignments": valid_assignments,
             "skipped_assignments": skipped_assignments,
             "processed_assignments": len(valid_assignments),
-            "threshold_used": max(1, int(total_students * 0.1))
+            "threshold_used": max(1, int(total_students * 0.1)),
+            "tags_applied": tag_names,
+            "total_tags": len(assignment_tags)
         }
 
     except HTTPException:
@@ -350,11 +429,14 @@ def view_grades(db: Session = Depends(get_db)):
             grades_list = []
             for grade in s.grades:
                 assignment = grade.assignment
+                # Include tag information
+                tag_names = [tag.name for tag in assignment.tags] if hasattr(assignment, 'tags') else []
                 grades_list.append({
                     "assignment": assignment.name,
                     "date": assignment.date.isoformat() if assignment.date else None,
                     "score": grade.score,
                     "max_points": assignment.max_points,
+                    "tags": tag_names,
                 })
             result.append({
                 "email": s.email,
@@ -389,11 +471,13 @@ def get_grades_for_table(db: Session = Depends(get_db)):
             grades_list = []
             for grade in student.grades:
                 assignment = grade.assignment
+                tag_names = [tag.name for tag in assignment.tags] if hasattr(assignment, 'tags') else []
                 grades_list.append({
                     "assignment": assignment.name,
                     "date": assignment.date.isoformat() if assignment.date else None,
                     "max_points": assignment.max_points,
                     "score": grade.score,
+                    "tags": tag_names,
                 })
             result.append({
                 "email": student.email,
@@ -446,11 +530,13 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
             total_points += score
             max_possible += max_pts
 
+            tag_names = [tag.name for tag in assignment.tags] if hasattr(assignment, 'tags') else []
             grades_list.append({
                 "assignment": assignment.name,
                 "date": assignment.date.isoformat() if assignment.date else None,
                 "score": score,
-                "max_points": max_pts
+                "max_points": max_pts,
+                "tags": tag_names
             })
 
     overall_percentage = (total_points / max_possible * 100) if max_possible > 0 else 0
@@ -465,8 +551,6 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
         "total_assignments": len(grades_list),
         "grades": grades_list
     }
-
-# Enhanced search endpoints with tags support
 
 @app.get("/api/search-students")
 def search_students(query: str = "", db: Session = Depends(get_db)):
@@ -493,11 +577,13 @@ def search_students(query: str = "", db: Session = Depends(get_db)):
             grades_list = []
             for grade in student.grades:
                 assignment = grade.assignment
+                tag_names = [tag.name for tag in assignment.tags] if hasattr(assignment, 'tags') else []
                 grades_list.append({
                     "assignment": assignment.name,
                     "date": assignment.date.isoformat() if assignment.date else None,
                     "max_points": assignment.max_points,
                     "score": grade.score,
+                    "tags": tag_names,
                 })
             
             result.append({
@@ -527,19 +613,8 @@ def get_assignments(db: Session = Depends(get_db)):
             # Count students who have grades for this assignment
             grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
             
-            # Get tags for this assignment - with error handling
-            tags = []
-            try:
-                for tag in assignment.tags:
-                    tags.append({
-                        "id": tag.id,
-                        "name": tag.name,
-                        "color": tag.color,
-                        "description": tag.description
-                    })
-            except Exception as tag_error:
-                print(f"Error getting tags for assignment {assignment.id}: {tag_error}")
-                tags = []  # Continue without tags if there's an error
+            # Get tags for this assignment
+            tag_names = [tag.name for tag in assignment.tags] if hasattr(assignment, 'tags') else []
             
             result.append({
                 "id": assignment.id,
@@ -547,7 +622,7 @@ def get_assignments(db: Session = Depends(get_db)):
                 "date": assignment.date.isoformat() if assignment.date else None,
                 "max_points": assignment.max_points,
                 "student_count": grade_count,
-                "tags": tags
+                "tags": tag_names
             })
         
         return {"assignments": result}
@@ -555,28 +630,20 @@ def get_assignments(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
 
-# New Tag Management Endpoints
-
 @app.get("/api/tags")
-def get_all_tags(db: Session = Depends(get_db)):
-    """Get all available tags"""
+def get_tags(db: Session = Depends(get_db)):
+    """Get all tags"""
     try:
-        tags = db.query(Tag).order_by(Tag.name).all()
+        tags = db.query(Tag).order_by(Tag.name.asc()).all()
         result = []
         
         for tag in tags:
-            # Safe access to assignments count
-            assignment_count = 0
-            try:
-                assignment_count = len(tag.assignments) if hasattr(tag, 'assignments') else 0
-            except Exception:
-                assignment_count = 0
-                
+            # Count assignments with this tag
+            assignment_count = len(tag.assignments) if hasattr(tag, 'assignments') else 0
+            
             result.append({
                 "id": tag.id,
                 "name": tag.name,
-                "color": tag.color,
-                "description": tag.description,
                 "assignment_count": assignment_count
             })
         
@@ -584,218 +651,6 @@ def get_all_tags(db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
-
-@app.post("/api/tags")
-def create_tag(tag_data: TagCreate, db: Session = Depends(get_db)):
-    """Create a new tag"""
-    try:
-        # Check if tag name already exists
-        existing_tag = db.query(Tag).filter_by(name=tag_data.name.strip()).first()
-        if existing_tag:
-            raise HTTPException(status_code=400, detail="Tag name already exists")
-        
-        new_tag = Tag(
-            name=tag_data.name.strip(),
-            color=tag_data.color,
-            description=tag_data.description
-        )
-        
-        db.add(new_tag)
-        db.commit()
-        db.refresh(new_tag)
-        
-        return {
-            "id": new_tag.id,
-            "name": new_tag.name,
-            "color": new_tag.color,
-            "description": new_tag.description,
-            "assignment_count": 0
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating tag: {str(e)}")
-
-@app.put("/api/tags/{tag_id}")
-def update_tag(tag_id: int, tag_data: TagUpdate, db: Session = Depends(get_db)):
-    """Update an existing tag"""
-    try:
-        tag = db.query(Tag).filter_by(id=tag_id).first()
-        if not tag:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        # Check if new name already exists (if name is being changed)
-        if tag_data.name and tag_data.name.strip() != tag.name:
-            existing_tag = db.query(Tag).filter_by(name=tag_data.name.strip()).first()
-            if existing_tag:
-                raise HTTPException(status_code=400, detail="Tag name already exists")
-        
-        # Update fields
-        if tag_data.name:
-            tag.name = tag_data.name.strip()
-        if tag_data.color:
-            tag.color = tag_data.color
-        if tag_data.description is not None:
-            tag.description = tag_data.description
-        
-        db.commit()
-        db.refresh(tag)
-        
-        # Safe access to assignments count
-        assignment_count = 0
-        try:
-            assignment_count = len(tag.assignments) if hasattr(tag, 'assignments') else 0
-        except Exception:
-            assignment_count = 0
-        
-        return {
-            "id": tag.id,
-            "name": tag.name,
-            "color": tag.color,
-            "description": tag.description,
-            "assignment_count": assignment_count
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating tag: {str(e)}")
-
-@app.delete("/api/tags/{tag_id}")
-def delete_tag(tag_id: int, db: Session = Depends(get_db)):
-    """Delete a tag"""
-    try:
-        tag = db.query(Tag).filter_by(id=tag_id).first()
-        if not tag:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        db.delete(tag)
-        db.commit()
-        
-        return {"message": "Tag deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error deleting tag: {str(e)}")
-
-# Assignment-Tag Management Endpoints
-
-@app.put("/api/assignments/{assignment_id}/tags")
-def update_assignment_tags(assignment_id: int, tag_data: AssignmentTagUpdate, db: Session = Depends(get_db)):
-    """Update tags for an assignment"""
-    try:
-        assignment = db.query(Assignment).filter_by(id=assignment_id).first()
-        if not assignment:
-            raise HTTPException(status_code=404, detail="Assignment not found")
-        
-        # Get the new tags
-        new_tags = db.query(Tag).filter(Tag.id.in_(tag_data.tag_ids)).all()
-        
-        # Update the assignment's tags
-        assignment.tags = new_tags
-        db.commit()
-        
-        # Return updated assignment with tags
-        tags = []
-        for tag in assignment.tags:
-            tags.append({
-                "id": tag.id,
-                "name": tag.name,
-                "color": tag.color,
-                "description": tag.description
-            })
-        
-        return {
-            "id": assignment.id,
-            "name": assignment.name,
-            "tags": tags,
-            "message": "Assignment tags updated successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating assignment tags: {str(e)}")
-
-@app.get("/api/search-assignments")
-def search_assignments(
-    query: str = "",
-    tag_ids: str = "",
-    db: Session = Depends(get_db)
-):
-    """Search assignments by name, description, or tags"""
-    try:
-        assignments_query = db.query(Assignment)
-        
-        # Text search in assignment name and description
-        if query.strip():
-            search_term = f"%{query.lower()}%"
-            assignments_query = assignments_query.filter(
-                or_(
-                    func.lower(Assignment.name).like(search_term)
-                )
-            )
-        
-        # Filter by tags
-        if tag_ids.strip():
-            try:
-                tag_id_list = [int(id.strip()) for id in tag_ids.split(',') if id.strip()]
-                if tag_id_list:
-                    assignments_query = assignments_query.join(Assignment.tags).filter(
-                        Tag.id.in_(tag_id_list)
-                    )
-            except ValueError:
-                raise HTTPException(status_code=400, detail="Invalid tag IDs provided")
-        
-        assignments = assignments_query.order_by(Assignment.date.asc(), Assignment.name.asc()).all()
-        result = []
-        
-        for assignment in assignments:
-            # Count students who have grades
-            grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
-            
-            # Get tags for this assignment - with error handling
-            tags = []
-            try:
-                for tag in assignment.tags:
-                    tags.append({
-                        "id": tag.id,
-                        "name": tag.name,
-                        "color": tag.color,
-                        "description": tag.description
-                    })
-            except Exception as tag_error:
-                print(f"Error getting tags for assignment {assignment.id}: {tag_error}")
-                tags = []
-            
-            result.append({
-                "id": assignment.id,
-                "name": assignment.name,
-                "date": assignment.date.isoformat() if assignment.date else None,
-                "max_points": assignment.max_points,
-                "student_count": grade_count,
-                "tags": tags
-            })
-        
-        return {
-            "assignments": result,
-            "total_found": len(result),
-            "search_query": query,
-            "tag_filter": tag_ids
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching assignments: {str(e)}")
-
-# Existing endpoints continue...
 
 @app.get("/reset-db")
 def reset_db():
