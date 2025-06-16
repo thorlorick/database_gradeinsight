@@ -34,7 +34,6 @@ class Assignment(Base):
     name = Column(String)
     date = Column(Date, nullable=True)
     max_points = Column(Float, nullable=False)
-    description = Column(String, nullable=True)  # Optional description field
     grades = relationship("Grade", back_populates="assignment")
     
     # Many-to-many relationship with tags
