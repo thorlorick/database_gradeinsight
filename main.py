@@ -1,21 +1,26 @@
+# === Standard Library ===
 import io
 import os
-import pandas as pd
-import traceback
 import json
+import traceback
+from datetime import datetime
+from typing import Optional
+
+# === Third-Party Packages ===
+import pandas as pd
 from fastapi import FastAPI, UploadFile, File, Depends, Request, HTTPException, APIRouter, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import and_, or_, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
+
+# === Internal Modules ===
 from database import Base, engine, SessionLocal
-from models import Student, Assignment, Grade, Tag  # Add Tag import
-from datetime import datetime
-from sqlalchemy import and_
-from sqlalchemy import or_, func
+from models import Student, Assignment, Grade, Tag
 from downloadTemplate import router as downloadTemplate_router
-from typing import Optional
+
 
 app = FastAPI()
 
