@@ -62,7 +62,6 @@ async def root():
 
 app.include_router(downloadTemplate_router) #trying to refactor endpoints. this one is to download the template from the dashboard
 
-
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_form():
     return """
@@ -118,7 +117,6 @@ async def student_portal_redirect(request: Request):
         return templates.TemplateResponse("student-portal.html", {"request": request})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading student portal: {str(e)}")
-
 
 @app.get("/teacher-student-view", response_class=HTMLResponse)
 async def teacher_student_view(request: Request):  # Fixed function name
@@ -371,7 +369,6 @@ async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-
 @app.get("/view-students")
 def view_students(db: Session = Depends(get_db)):
     try:
@@ -512,7 +509,6 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
         "grades": grades_list
     }
 
-
 # Enhanced search endpoints with tags support
 
 @app.get("/api/search-students")
@@ -770,263 +766,7 @@ def update_assignment_tags(assignment_id: int, tag_data: AssignmentTagUpdate, db
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating assignment tags: {str(e)}")
-# Enhanced search endpoints with tags support
 
-@app.get("/api/search-students")
-def search_students(query: str = "", db: Session = Depends(get_db)):
-    """Search students by name or email"""
-    try:
-        students_query = db.query(Student)
-        
-        if query.strip():
-            search_term = f"%{query.lower()}%"
-            students_query = students_query.filter(
-                or_(
-                    func.lower(Student.first_name).like(search_term),
-                    func.lower(Student.last_name).like(search_term),
-                    func.lower(Student.email).like(search_term),
-                    func.lower(func.concat(Student.first_name, ' ', Student.last_name)).like(search_term),
-                    func.lower(func.concat(Student.last_name, ', ', Student.first_name)).like(search_term)
-                )
-            )
-        
-        students = students_query.all()
-        result = []
-        
-        for student in students:
-            grades_list = []
-            for grade in student.grades:
-                assignment = grade.assignment
-                grades_list.append({
-                    "assignment": assignment.name,
-                    "date": assignment.date.isoformat() if assignment.date else None,
-                    "max_points": assignment.max_points,
-                    "score": grade.score,
-                })
-            
-            result.append({
-                "email": student.email,
-                "first_name": student.first_name,
-                "last_name": student.last_name,
-                "grades": grades_list,
-            })
-        
-        return {
-            "students": result,
-            "total_found": len(result),
-            "search_query": query
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching students: {str(e)}")
-
-@app.get("/api/assignments")
-def get_assignments(db: Session = Depends(get_db)):
-    """Get all assignments with their tags"""
-    try:
-        assignments = db.query(Assignment).order_by(Assignment.date.asc(), Assignment.name.asc()).all()
-        result = []
-        
-        for assignment in assignments:
-            # Count students who have grades for this assignment
-            grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
-            
-            # Get tags for this assignment - with error handling
-            tags = []
-            try:
-                for tag in assignment.tags:
-                    tags.append({
-                        "id": tag.id,
-                        "name": tag.name,
-                        "color": tag.color,
-                        "description": tag.description
-                    })
-            except Exception as tag_error:
-                print(f"Error getting tags for assignment {assignment.id}: {tag_error}")
-                tags = []  # Continue without tags if there's an error
-            
-            result.append({
-                "id": assignment.id,
-                "name": assignment.name,
-                "date": assignment.date.isoformat() if assignment.date else None,
-                "max_points": assignment.max_points,
-                "description": getattr(assignment, 'description', None),  # Safe attribute access
-                "student_count": grade_count,
-                "tags": tags
-            })
-        
-        return {"assignments": result}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
-
-# New Tag Management Endpoints
-
-@app.get("/api/tags")
-def get_all_tags(db: Session = Depends(get_db)):
-    """Get all available tags"""
-    try:
-        tags = db.query(Tag).order_by(Tag.name).all()
-        result = []
-        
-        for tag in tags:
-            # Safe access to assignments count
-            assignment_count = 0
-            try:
-                assignment_count = len(tag.assignments) if hasattr(tag, 'assignments') else 0
-            except Exception:
-                assignment_count = 0
-                
-            result.append({
-                "id": tag.id,
-                "name": tag.name,
-                "color": tag.color,
-                "description": tag.description,
-                "assignment_count": assignment_count
-            })
-        
-        return {"tags": result}
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
-
-@app.post("/api/tags")
-def create_tag(tag_data: TagCreate, db: Session = Depends(get_db)):
-    """Create a new tag"""
-    try:
-        # Check if tag name already exists
-        existing_tag = db.query(Tag).filter_by(name=tag_data.name.strip()).first()
-        if existing_tag:
-            raise HTTPException(status_code=400, detail="Tag name already exists")
-        
-        new_tag = Tag(
-            name=tag_data.name.strip(),
-            color=tag_data.color,
-            description=tag_data.description
-        )
-        
-        db.add(new_tag)
-        db.commit()
-        db.refresh(new_tag)
-        
-        return {
-            "id": new_tag.id,
-            "name": new_tag.name,
-            "color": new_tag.color,
-            "description": new_tag.description,
-            "assignment_count": 0
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error creating tag: {str(e)}")
-
-@app.put("/api/tags/{tag_id}")
-def update_tag(tag_id: int, tag_data: TagUpdate, db: Session = Depends(get_db)):
-    """Update an existing tag"""
-    try:
-        tag = db.query(Tag).filter_by(id=tag_id).first()
-        if not tag:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        # Check if new name already exists (if name is being changed)
-        if tag_data.name and tag_data.name.strip() != tag.name:
-            existing_tag = db.query(Tag).filter_by(name=tag_data.name.strip()).first()
-            if existing_tag:
-                raise HTTPException(status_code=400, detail="Tag name already exists")
-        
-        # Update fields
-        if tag_data.name:
-            tag.name = tag_data.name.strip()
-        if tag_data.color:
-            tag.color = tag_data.color
-        if tag_data.description is not None:
-            tag.description = tag_data.description
-        
-        db.commit()
-        db.refresh(tag)
-        
-        # Safe access to assignments count
-        assignment_count = 0
-        try:
-            assignment_count = len(tag.assignments) if hasattr(tag, 'assignments') else 0
-        except Exception:
-            assignment_count = 0
-        
-        return {
-            "id": tag.id,
-            "name": tag.name,
-            "color": tag.color,
-            "description": tag.description,
-            "assignment_count": assignment_count
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating tag: {str(e)}")
-
-@app.delete("/api/tags/{tag_id}")
-def delete_tag(tag_id: int, db: Session = Depends(get_db)):
-    """Delete a tag"""
-    try:
-        tag = db.query(Tag).filter_by(id=tag_id).first()
-        if not tag:
-            raise HTTPException(status_code=404, detail="Tag not found")
-        
-        db.delete(tag)
-        db.commit()
-        
-        return {"message": "Tag deleted successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error deleting tag: {str(e)}")
-
-# Assignment-Tag Management Endpoints
-
-@app.put("/api/assignments/{assignment_id}/tags")
-def update_assignment_tags(assignment_id: int, tag_data: AssignmentTagUpdate, db: Session = Depends(get_db)):
-    """Update tags for an assignment"""
-    try:
-        assignment = db.query(Assignment).filter_by(id=assignment_id).first()
-        if not assignment:
-            raise HTTPException(status_code=404, detail="Assignment not found")
-        
-        # Get the new tags
-        new_tags = db.query(Tag).filter(Tag.id.in_(tag_data.tag_ids)).all()
-        
-        # Update the assignment's tags
-        assignment.tags = new_tags
-        db.commit()
-        
-        # Return updated assignment with tags
-        tags = []
-        for tag in assignment.tags:
-            tags.append({
-                "id": tag.id,
-                "name": tag.name,
-                "color": tag.color,
-                "description": tag.description
-            })
-        
-        return {
-            "id": assignment.id,
-            "name": assignment.name,
-            "tags": tags,
-            "message": "Assignment tags updated successfully"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error updating assignment tags: {str(e)}")
 @app.get("/api/search-assignments")
 def search_assignments(
     query: str = "",
@@ -1100,7 +840,6 @@ def search_assignments(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching assignments: {str(e)}")
-
 
 # Existing endpoints continue...
 
