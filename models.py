@@ -1,6 +1,14 @@
-from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, Date, ForeignKey, Table
 from sqlalchemy.orm import relationship
 from database import Base
+
+# Association table for many-to-many relationship between assignments and tags
+assignment_tags = Table(
+    'assignment_tags',
+    Base.metadata,
+    Column('assignment_id', Integer, ForeignKey('assignments.id'), primary_key=True),
+    Column('tag_id', Integer, ForeignKey('tags.id'), primary_key=True)
+)
 
 class Student(Base):
     __tablename__ = 'students'
@@ -10,13 +18,27 @@ class Student(Base):
     student_number = Column(String, nullable=True)  # optional or legacy field
     grades = relationship("Grade", back_populates="student")
 
+class Tag(Base):
+    __tablename__ = 'tags'
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, nullable=False, index=True)
+    color = Column(String, default='#3B82F6')  # Default blue color
+    description = Column(String, nullable=True)
+    
+    # Many-to-many relationship with assignments
+    assignments = relationship("Assignment", secondary=assignment_tags, back_populates="tags")
+
 class Assignment(Base):
     __tablename__ = 'assignments'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String)
     date = Column(Date, nullable=True)
     max_points = Column(Float, nullable=False)
+    description = Column(String, nullable=True)  # Optional description field
     grades = relationship("Grade", back_populates="assignment")
+    
+    # Many-to-many relationship with tags
+    tags = relationship("Tag", secondary=assignment_tags, back_populates="assignments")
 
 class Grade(Base):
     __tablename__ = 'grades'
