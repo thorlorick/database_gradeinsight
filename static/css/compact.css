@@ -514,10 +514,10 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
 .grades-table tbody td:first-child {
     position: sticky;  Uncomment if you want sticky first column 
     left: 0;
-    background-color: #1e293b;   /* Dark blue-gray */
-    color: #fff;                 /* White text */
+    background-color: #d9dddf;   
+    color: #0a0a0a;                 
     z-index: 5;
-    border-right: 1px solid #e5e7eb;
+    border-right: 1px solid #0a0a0a;
     font-weight: 700;            /* Bolder */
     font-size: 0.85rem;          /* More readable */
 }
