@@ -358,7 +358,7 @@ th, td,
 
 /* Compact header styling */
 th, .grades-table th {
-    background-color: #2563eb;
+    background-color: #97d1ef;
     color: white;
     font-weight: 600;
     position: sticky;
@@ -373,7 +373,7 @@ th, .grades-table th {
 
 /* Row hover effects */
 tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
-    background-color: #f9fafb;
+    background-color: #f9eab8;
 }
 
 /* Zebra striping for better readability */
