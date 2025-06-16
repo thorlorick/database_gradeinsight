@@ -1027,7 +1027,6 @@ def update_assignment_tags(assignment_id: int, tag_data: AssignmentTagUpdate, db
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating assignment tags: {str(e)}")
-
 @app.get("/api/search-assignments")
 def search_assignments(
     query: str = "",
@@ -1064,10 +1063,10 @@ def search_assignments(
         
         for assignment in assignments:
             # Count students who have grades
-          grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
+            grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
             
             # Get tags for this assignment - with error handling
-        tags = []
+            tags = []
             try:
                 for tag in assignment.tags:
                     tags.append({
@@ -1101,6 +1100,7 @@ def search_assignments(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching assignments: {str(e)}")
+
 
 # Existing endpoints continue...
 
