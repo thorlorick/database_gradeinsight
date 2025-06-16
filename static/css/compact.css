@@ -500,15 +500,26 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
     z-index: 11;
 }
 
-/* Sticky first column (student names) */
+/* Sticky first column (student names) 
 .grades-table tbody td:first-child {
     position: sticky; 
     left: 0;
     background-color: white;
     z-index: 5;
     border-right: 1px solid #e5e7eb;
-    font-weight: 600; /* Make student names stand out */
+    font-weight: 600; 
     font-size: 0.4rem;
+} */
+
+.grades-table tbody td:first-child {
+    position: sticky;  Uncomment if you want sticky first column 
+    left: 0;
+    background-color: #1e293b;   /* Dark blue-gray */
+    color: #fff;                 /* White text */
+    z-index: 5;
+    border-right: 1px solid #e5e7eb;
+    font-weight: 700;            /* Bolder */
+    font-size: 0.85rem;          /* More readable */
 }
 
 .grades-table tbody tr:nth-child(even) td:first-child {
