@@ -589,7 +589,6 @@ def get_assignments(db: Session = Depends(get_db)):
                 "name": assignment.name,
                 "date": assignment.date.isoformat() if assignment.date else None,
                 "max_points": assignment.max_points,
-                "description": getattr(assignment, 'description', None),  # Safe attribute access
                 "student_count": grade_count,
                 "tags": tags
             })
@@ -782,8 +781,7 @@ def search_assignments(
             search_term = f"%{query.lower()}%"
             assignments_query = assignments_query.filter(
                 or_(
-                    func.lower(Assignment.name).like(search_term),
-                    func.lower(Assignment.description).like(search_term) if hasattr(Assignment, 'description') else False
+                    func.lower(Assignment.name).like(search_term)
                 )
             )
         
@@ -824,7 +822,6 @@ def search_assignments(
                 "name": assignment.name,
                 "date": assignment.date.isoformat() if assignment.date else None,
                 "max_points": assignment.max_points,
-                "description": getattr(assignment, 'description', None),
                 "student_count": grade_count,
                 "tags": tags
             })
