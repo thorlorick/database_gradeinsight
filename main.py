@@ -16,6 +16,7 @@ from sqlalchemy import or_, func
 from pydantic import BaseModel
 from typing import List, Optional
 from downloadTemplate import router as downloadTemplate_router
+from uploadCSV import router as uploadCSV_router
 
 # Pydantic models for request bodies
 class TagCreate(BaseModel):
