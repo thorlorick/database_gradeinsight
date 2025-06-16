@@ -494,7 +494,7 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
 
 /* Student info column (first column) styling */
 .student-info {
-/*    position: sticky; */
+    position: sticky; 
     left: 0;
     background-color: #2563eb;
     z-index: 11;
@@ -502,7 +502,7 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
 
 /* Sticky first column (student names) */
 .grades-table tbody td:first-child {
-/*    position: sticky; */
+    position: sticky; 
     left: 0;
     background-color: white;
     z-index: 5;
