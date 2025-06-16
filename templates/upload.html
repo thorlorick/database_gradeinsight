@@ -1,0 +1,52 @@
+<html>
+<head>
+    <title>Upload CSV</title>
+</head>
+<body>
+    <h1>Upload CSV File</h1>
+    <form id="uploadForm">
+        <input id="fileInput" name="file" type="file" accept=".csv" required>
+        <!-- Tag selection UI -->
+        <div>
+            <label for="tagSelect">Tags:</label>
+            <select id="tagSelect" name="tags" multiple>
+                {% for tag in tags %}
+                    <option value="{{ tag.id }}">{{ tag.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <input type="submit" value="Upload">
+    </form>
+    <div id="loadingMessage" style="display:none; margin-top:1rem; font-weight:bold;">
+        Uploading... please wait.
+    </div>
+    <script>
+        const form = document.getElementById('uploadForm');
+        const loadingMessage = document.getElementById('loadingMessage');
+        const fileInput = document.getElementById('fileInput');
+        const tagSelect = document.getElementById('tagSelect');
+
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+            loadingMessage.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            // Add selected tags
+            const selectedTags = Array.from(tagSelect.selectedOptions).map(opt => opt.value);
+            formData.append('tags', JSON.stringify(selectedTags));
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+                if (!response.ok) throw new Error('Upload failed');
+                window.location.href = '/dashboard';
+            } catch (err) {
+                loadingMessage.textContent = 'Upload failed. Please try again.';
+            }
+        });
+    </script>
+</body>
+</html>
