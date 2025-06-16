@@ -1,4 +1,10 @@
-@app.get("/upload", response_class=HTMLResponse)
+import os  
+from fastapi import APIRouter
+from fastapi.responses import FileResponse, JSONResponse
+
+router = APIRouter()
+
+@router.get("/api/uploadCSV", response_class=HTMLResponse)
 async def upload_form():
     return """
     <html>
