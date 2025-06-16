@@ -9,12 +9,27 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 from database import Base, engine, SessionLocal
-from models import Student, Assignment, Grade
+from models import Student, Assignment, Grade, Tag
 from datetime import datetime
 from sqlalchemy import and_
 from sqlalchemy import or_, func
+from pydantic import BaseModel
+from typing import List, Optional
 from downloadTemplate import router as downloadTemplate_router
 
+# Pydantic models for request bodies
+class TagCreate(BaseModel):
+    name: str
+    color: Optional[str] = '#3B82F6'
+    description: Optional[str] = None
+
+class TagUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    description: Optional[str] = None
+
+class AssignmentTagUpdate(BaseModel):
+    tag_ids: List[int]
 
 app = FastAPI()
 
@@ -112,6 +127,7 @@ async def student_portal_redirect(request: Request):
         return templates.TemplateResponse("teacher-student-view.html", {"request": request})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading student portal: {str(e)}")
+
 @app.post("/upload")
 async def handle_upload(file: UploadFile = File(...), db: Session = Depends(get_db)):
     try:
@@ -511,7 +527,7 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
     }
 
 
-# Add these endpoints to your main.py file
+# Enhanced search endpoints with tags support
 
 @app.get("/api/search-students")
 def search_students(query: str = "", db: Session = Depends(get_db)):
@@ -563,7 +579,7 @@ def search_students(query: str = "", db: Session = Depends(get_db)):
 
 @app.get("/api/assignments")
 def get_assignments(db: Session = Depends(get_db)):
-    """Get all assignments"""
+    """Get all assignments with their tags"""
     try:
         assignments = db.query(Assignment).order_by(Assignment.date.asc(), Assignment.name.asc()).all()
         result = []
@@ -572,12 +588,24 @@ def get_assignments(db: Session = Depends(get_db)):
             # Count students who have grades for this assignment
             grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
             
+            # Get tags for this assignment
+            tags = []
+            for tag in assignment.tags:
+                tags.append({
+                    "id": tag.id,
+                    "name": tag.name,
+                    "color": tag.color,
+                    "description": tag.description
+                })
+            
             result.append({
                 "id": assignment.id,
                 "name": assignment.name,
                 "date": assignment.date.isoformat() if assignment.date else None,
                 "max_points": assignment.max_points,
-                "student_count": grade_count
+                "description": assignment.description,
+                "student_count": grade_count,
+                "tags": tags
             })
         
         return {"assignments": result}
@@ -585,31 +613,88 @@ def get_assignments(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
 
+# New Tag Management Endpoints
 
-
-# Don't forget to add these imports at the top of your main.py file:
-# from sqlalchemy import or_, func
-
-#student API for their portal
-
-@app.get("/reset-db")
-def reset_db():
-    db = SessionLocal()
+@app.get("/api/tags")
+def get_all_tags(db: Session = Depends(get_db)):
+    """Get all available tags"""
     try:
-        Base.metadata.drop_all(bind=engine)
-        Base.metadata.create_all(bind=engine)
-        return {"status": "Database reset successfully"}
+        tags = db.query(Tag).order_by(Tag.name).all()
+        result = []
+        
+        for tag in tags:
+            result.append({
+                "id": tag.id,
+                "name": tag.name,
+                "color": tag.color,
+                "description": tag.description,
+                "assignment_count": len(tag.assignments)
+            })
+        
+        return {"tags": result}
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error resetting database: {str(e)}")
-    finally:
-        db.close()
+        raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
 
-# Add a health check endpoint
-@app.get("/health")
-def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+@app.post("/api/tags")
+def create_tag(tag_data: TagCreate, db: Session = Depends(get_db)):
+    """Create a new tag"""
+    try:
+        # Check if tag name already exists
+        existing_tag = db.query(Tag).filter_by(name=tag_data.name.strip()).first()
+        if existing_tag:
+            raise HTTPException(status_code=400, detail="Tag name already exists")
+        
+        new_tag = Tag(
+            name=tag_data.name.strip(),
+            color=tag_data.color,
+            description=tag_data.description
+        )
+        
+        db.add(new_tag)
+        db.commit()
+        db.refresh(new_tag)
+        
+        return {
+            "id": new_tag.id,
+            "name": new_tag.name,
+            "color": new_tag.color,
+            "description": new_tag.description,
+            "assignment_count": 0
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating tag: {str(e)}")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-
+@app.put("/api/tags/{tag_id}")
+def update_tag(tag_id: int, tag_data: TagUpdate, db: Session = Depends(get_db)):
+    """Update an existing tag"""
+    try:
+        tag = db.query(Tag).filter_by(id=tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        # Check if new name already exists (if name is being changed)
+        if tag_data.name and tag_data.name.strip() != tag.name:
+            existing_tag = db.query(Tag).filter_by(name=tag_data.name.strip()).first()
+            if existing_tag:
+                raise HTTPException(status_code=400, detail="Tag name already exists")
+        
+        # Update fields
+        if tag_data.name:
+            tag.name = tag_data.name.strip()
+        if tag_data.color:
+            tag.color = tag_data.color
+        if tag_data.description is not None:
+            tag.description = tag_data.description
+        
+        db.commit()
+        db.refresh(tag)
+        
+        return {
+            "id": tag.id,
+            "name": tag.name,
+            "color
