@@ -71,18 +71,22 @@ class GradeUtils {
     }
 }
 
-// grades-table.js - Refactored grades table
+// grades-table.js - Enhanced grades table with tag search
 class GradesTable {
     constructor() {
         this.allStudents = [];
         this.filteredStudents = [];
         this.assignments = [];
+        this.currentStudentSearch = '';
+        this.currentTagSearch = '';
+        this.visibleColumns = new Set();
         this.init();
     }
 
     init() {
         this.loadGrades();
         this.setupSearch();
+        this.setupTagSearch();
     }
 
     async loadGrades() {
@@ -108,7 +112,8 @@ class GradesTable {
                     assignmentMap.set(key, {
                         name: grade.assignment,
                         date: grade.date,
-                        max_points: grade.max_points
+                        max_points: grade.max_points,
+                        tags: grade.tags || [] // Assuming your grade data includes tags
                     });
                 }
             });
@@ -118,6 +123,116 @@ class GradesTable {
             if (a.date && b.date) return new Date(a.date) - new Date(b.date);
             return a.name.localeCompare(b.name);
         });
+        
+        // Initialize all columns as visible
+        this.visibleColumns = new Set(this.assignments.map((_, index) => index));
+    }
+
+    setupSearch() {
+        const searchInput = document.getElementById('studentSearch');
+        const clearButton = document.getElementById('clearSearch');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                const query = searchInput.value.trim();
+                this.currentStudentSearch = query;
+                this.applyFilters();
+                if (query) {
+                    clearButton.style.display = 'inline-block';
+                } else {
+                    clearButton.style.display = 'none';
+                }
+            });
+        }
+
+        if (clearButton) {
+            clearButton.addEventListener('click', () => this.clearStudentSearch());
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') e.preventDefault();
+            });
+        }
+    }
+
+    setupTagSearch() {
+        // Create tag search input if it doesn't exist
+        const searchContainer = document.querySelector('.search-container') || document.querySelector('.controls');
+        if (searchContainer && !document.getElementById('tagSearch')) {
+            const tagSearchHTML = `
+                <div class="search-group">
+                    <label for="tagSearch">Filter by Assignment Tag:</label>
+                    <input type="text" id="tagSearch" placeholder="Enter tag to filter assignments..." />
+                    <button type="button" id="clearTagSearch" style="display: none;">Clear</button>
+                </div>
+            `;
+            searchContainer.insertAdjacentHTML('beforeend', tagSearchHTML);
+        }
+
+        const tagSearchInput = document.getElementById('tagSearch');
+        const clearTagButton = document.getElementById('clearTagSearch');
+
+        if (tagSearchInput) {
+            tagSearchInput.addEventListener('input', () => {
+                const query = tagSearchInput.value.trim();
+                this.currentTagSearch = query;
+                this.applyTagFilter();
+                if (query) {
+                    clearTagButton.style.display = 'inline-block';
+                } else {
+                    clearTagButton.style.display = 'none';
+                }
+            });
+        }
+
+        if (clearTagButton) {
+            clearTagButton.addEventListener('click', () => this.clearTagSearch());
+        }
+    }
+
+    applyFilters() {
+        // Apply student name/email filter
+        if (this.currentStudentSearch) {
+            const searchTerm = this.currentStudentSearch.toLowerCase();
+            this.filteredStudents = this.allStudents.filter(student => {
+                const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
+                const reverseName = `${student.last_name}, ${student.first_name}`.toLowerCase();
+                const email = student.email.toLowerCase();
+                return fullName.includes(searchTerm) || reverseName.includes(searchTerm) || email.includes(searchTerm);
+            });
+        } else {
+            this.filteredStudents = [...this.allStudents];
+        }
+        
+        this.renderBody();
+        this.updateSearchStats();
+    }
+
+    applyTagFilter() {
+        if (!this.currentTagSearch) {
+            // Show all columns
+            this.visibleColumns = new Set(this.assignments.map((_, index) => index));
+        } else {
+            // Filter columns by tag
+            const searchTerm = this.currentTagSearch.toLowerCase();
+            this.visibleColumns = new Set();
+            
+            this.assignments.forEach((assignment, index) => {
+                // Check if assignment name contains the search term
+                if (assignment.name.toLowerCase().includes(searchTerm)) {
+                    this.visibleColumns.add(index);
+                }
+                // Check if any tags contain the search term
+                if (assignment.tags && assignment.tags.some(tag => 
+                    tag.toLowerCase().includes(searchTerm))) {
+                    this.visibleColumns.add(index);
+                }
+            });
+        }
+        
+        this.renderTable();
+        this.updateSearchStats();
     }
 
     renderTable() {
@@ -128,15 +243,24 @@ class GradesTable {
     renderHeader() {
         const headerRow = document.getElementById('tableHeader');
         headerRow.innerHTML = '<th class="student-info">Student</th>';
-        this.assignments.forEach(assignment => {
+        
+        this.assignments.forEach((assignment, index) => {
             const th = document.createElement('th');
             th.className = 'assignment-header';
+            th.style.display = this.visibleColumns.has(index) ? '' : 'none';
+            
+            const tagsHTML = assignment.tags && assignment.tags.length > 0 
+                ? `<div class="assignment-tags">${assignment.tags.map(tag => 
+                    `<span class="tag">${GradeUtils.escapeHtml(tag)}</span>`).join('')}</div>`
+                : '';
+            
             th.innerHTML = `
                 <div class="assignment-name">${GradeUtils.escapeHtml(assignment.name)}</div>
                 <div class="assignment-info">
                     ${assignment.date ? GradeUtils.formatDate(assignment.date) : 'No date'} | 
                     ${assignment.max_points} pts
                 </div>
+                ${tagsHTML}
             `;
             headerRow.appendChild(th);
         });
@@ -168,29 +292,15 @@ class GradesTable {
         row.style.cursor = 'pointer';
         row.classList.add('clickable-row');
         row.addEventListener('click', () => this.navigateToStudent(student));
-  /*      
-        // Add hover effects
+
         row.addEventListener('mouseenter', function() {
-            this.style.backgroundColor = '#f0f8ff';
-            this.style.transform = 'scale(1.01)';
-            this.style.transition = 'all 0.2s ease';
+            this.style.backgroundColor = '#d4edda';
+            this.style.transition = 'background-color 0.2s ease';
         });
-        
+
         row.addEventListener('mouseleave', function() {
             this.style.backgroundColor = '';
-            this.style.transform = '';
         });
-*/
-        row.addEventListener('mouseenter', function() {
-    this.style.backgroundColor = '#d4edda'; // light green
-    this.style.transform = ''; // no scaling, so no movement
-    this.style.transition = 'background-color 0.2s ease';
-});
-
-row.addEventListener('mouseleave', function() {
-    this.style.backgroundColor = '';
-});
-
 
         // Student info cell
         const studentCell = document.createElement('td');
@@ -202,8 +312,9 @@ row.addEventListener('mouseleave', function() {
         row.appendChild(studentCell);
 
         // Grade cells
-        this.assignments.forEach(assignment => {
+        this.assignments.forEach((assignment, index) => {
             const gradeCell = this.createGradeCell(student, assignment);
+            gradeCell.style.display = this.visibleColumns.has(index) ? '' : 'none';
             row.appendChild(gradeCell);
         });
 
@@ -238,65 +349,59 @@ row.addEventListener('mouseleave', function() {
         }
     }
 
-    setupSearch() {
+    clearStudentSearch() {
         const searchInput = document.getElementById('studentSearch');
-        const clearButton = document.getElementById('clearSearch');
-
-        searchInput.addEventListener('input', () => {
-            const query = searchInput.value.trim();
-            if (query) {
-                this.filterStudents(query);
-                clearButton.style.display = 'inline-block';
-            } else {
-                this.clearSearch();
-            }
-        });
-
-        clearButton.addEventListener('click', () => this.clearSearch());
-        searchInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') e.preventDefault();
-        });
-    }
-
-    filterStudents(query) {
-        const searchTerm = query.toLowerCase();
-        this.filteredStudents = this.allStudents.filter(student => {
-            const fullName = `${student.first_name} ${student.last_name}`.toLowerCase();
-            const reverseName = `${student.last_name}, ${student.first_name}`.toLowerCase();
-            const email = student.email.toLowerCase();
-            return fullName.includes(searchTerm) || reverseName.includes(searchTerm) || email.includes(searchTerm);
-        });
-        this.renderBody();
-        this.updateSearchStats();
-    }
-
-    clearSearch() {
-        document.getElementById('studentSearch').value = '';
+        if (searchInput) {
+            searchInput.value = '';
+        }
         document.getElementById('clearSearch').style.display = 'none';
-        this.filteredStudents = [...this.allStudents];
-        this.renderBody();
-        this.updateSearchStats();
+        this.currentStudentSearch = '';
+        this.applyFilters();
+    }
+
+    clearTagSearch() {
+        const tagSearchInput = document.getElementById('tagSearch');
+        if (tagSearchInput) {
+            tagSearchInput.value = '';
+        }
+        document.getElementById('clearTagSearch').style.display = 'none';
+        this.currentTagSearch = '';
+        this.applyTagFilter();
     }
 
     updateSearchStats() {
         const statsElement = document.getElementById('searchStats');
-        const searchInput = document.getElementById('studentSearch');
-        if (searchInput.value.trim()) {
-            statsElement.textContent = `Showing ${this.filteredStudents.length} of ${this.allStudents.length} students`;
-        } else {
-            statsElement.textContent = `${this.allStudents.length} students total`;
+        if (statsElement) {
+            const visibleAssignments = this.visibleColumns.size;
+            const totalAssignments = this.assignments.length;
+            
+            let statusText = '';
+            if (this.currentStudentSearch || this.currentTagSearch) {
+                const parts = [];
+                if (this.currentStudentSearch) {
+                    parts.push(`${this.filteredStudents.length} of ${this.allStudents.length} students`);
+                }
+                if (this.currentTagSearch) {
+                    parts.push(`${visibleAssignments} of ${totalAssignments} assignments`);
+                }
+                statusText = `Showing ${parts.join(', ')}`;
+            } else {
+                statusText = `${this.allStudents.length} students, ${totalAssignments} assignments`;
+            }
+            
+            statsElement.textContent = statusText;
         }
     }
 
     highlightText(text) {
-        const searchTerm = document.getElementById('studentSearch').value.trim();
+        const searchTerm = this.currentStudentSearch;
         if (!searchTerm) return text;
         const regex = new RegExp(`(${GradeUtils.escapeRegex(searchTerm)})`, 'gi');
         return text.replace(regex, '<span class="highlight">$1</span>');
     }
 }
 
-// student-portal.js - Refactored student portal
+// student-portal.js - Student portal (unchanged)
 class StudentGradePortal {
     constructor() {
         this.emailInput = document.getElementById('emailInput');
@@ -492,61 +597,6 @@ class StudentGradePortal {
     }
 }
 
-
-
-function performSearch(searchTerm) {
-    const lowerSearchTerm = searchTerm.toLowerCase();
-    const table = document.getElementById('gradesTable');
-    const headerRow = document.getElementById('tableHeader');
-    const rows = document.querySelectorAll('#tableBody tr');
-
-    // Get all header cells except the first one (student name)
-    const headers = Array.from(headerRow.children).slice(1);
-    const columnCount = headers.length;
-
-    // Track which columns match the tag
-    const matchingColumns = new Set();
-
-    headers.forEach((th, index) => {
-        const colIndex = index + 1; // because first col is student name
-        rows.forEach(row => {
-            const cell = row.children[colIndex];
-            if (!cell) return;
-            const title = (cell.getAttribute('title') || '').toLowerCase();
-            if (title.includes(lowerSearchTerm)) {
-                matchingColumns.add(colIndex);
-            }
-        });
-    });
-
-    // Show/hide assignment columns based on tag match
-    headers.forEach((th, index) => {
-        const colIndex = index + 1;
-        const display = matchingColumns.has(colIndex) ? '' : 'none';
-        th.style.display = display;
-        rows.forEach(row => {
-            const cell = row.children[colIndex];
-            if (cell) cell.style.display = display;
-        });
-    });
-
-    // Always show the student name column
-    headerRow.children[0].style.display = '';
-    rows.forEach(row => {
-        if (row.children[0]) row.children[0].style.display = '';
-    });
-
-    // Optionally hide rows with no visible grades
-    rows.forEach(row => {
-        const visibleGrades = Array.from(row.children)
-            .slice(1)
-            .filter(td => td.style.display !== 'none');
-        row.style.display = visibleGrades.length ? '' : 'none';
-    });
-
-    updateSearchStats(searchTerm, rows.length, matchingColumns.size);
-}
-
 // Initialize based on page type
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('tableHeader')) {
@@ -559,4 +609,3 @@ document.addEventListener('DOMContentLoaded', () => {
         new StudentGradePortal();
     }
 });
-
