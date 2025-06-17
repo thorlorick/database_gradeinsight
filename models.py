@@ -41,4 +41,6 @@ class Tag(Base):
     __tablename__ = 'tags'
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, nullable=False)
+    color = Column(String, nullable=True)  # Optional color for UI display
+    description = Column(String, nullable=True)  # Optional description
     assignments = relationship("Assignment", secondary=assignment_tags, back_populates="tags")
