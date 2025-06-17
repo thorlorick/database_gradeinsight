@@ -597,6 +597,253 @@ class StudentGradePortal {
     }
 }
 
+
+ // Enhanced search functionality for both students and tags
+    document.addEventListener('DOMContentLoaded', function() {
+        const studentSearchInput = document.getElementById('studentSearch');
+        const tagSearchInput = document.getElementById('tagSearch');
+        const clearStudentButton = document.getElementById('clearStudentSearch');
+        const clearTagButton = document.getElementById('clearTagSearch');
+        const searchStats = document.getElementById('searchStats');
+        
+        let currentStudentFilter = '';
+        let currentTagFilter = '';
+        let allAssignmentColumns = [];
+        
+        // Store column information when table loads
+        function initializeColumnData() {
+            const headerRow = document.getElementById('tableHeader');
+            const headers = Array.from(headerRow.children).slice(1); // Skip student column
+            
+            allAssignmentColumns = headers.map((header, index) => ({
+                index: index + 1, // +1 because we skip student column
+                element: header,
+                name: header.textContent.toLowerCase(),
+                tags: (header.getAttribute('data-tags') || '').toLowerCase().split(',').filter(tag => tag.trim())
+            }));
+        }
+        
+        // Enhanced student search
+        function performStudentSearch(searchTerm) {
+            const lowerSearchTerm = searchTerm.toLowerCase();
+            const tableBody = document.getElementById('tableBody');
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            
+            let visibleStudents = 0;
+            
+            rows.forEach(row => {
+                const studentCell = row.querySelector('.student-info, td:first-child');
+                if (!studentCell) return;
+                
+                const studentText = studentCell.textContent.toLowerCase();
+                const hasMatch = !searchTerm || studentText.includes(lowerSearchTerm);
+                
+                if (hasMatch) {
+                    row.classList.remove('student-filtered');
+                    visibleStudents++;
+                    
+                    // Highlight matching text
+                    if (searchTerm) {
+                        studentCell.classList.add('highlighted-student');
+                    } else {
+                        studentCell.classList.remove('highlighted-student');
+                    }
+                } else {
+                    row.classList.add('student-filtered');
+                    studentCell.classList.remove('highlighted-student');
+                }
+            });
+            
+            updateRowVisibility();
+            updateSearchStats();
+        }
+        
+        // Enhanced tag/assignment search
+        function performTagSearch(searchTerm) {
+            if (!searchTerm.trim()) {
+                // Show all columns
+                allAssignmentColumns.forEach(col => {
+                    col.element.classList.remove('column-hidden');
+                    showColumnInRows(col.index);
+                });
+                updateSearchStats();
+                return;
+            }
+            
+            const lowerSearchTerm = searchTerm.toLowerCase();
+            let visibleColumns = 0;
+            
+            allAssignmentColumns.forEach(col => {
+                const nameMatches = col.name.includes(lowerSearchTerm);
+                const tagMatches = col.tags.some(tag => tag.includes(lowerSearchTerm));
+                
+                if (nameMatches || tagMatches) {
+                    col.element.classList.remove('column-hidden');
+                    col.element.classList.add('highlighted-assignment');
+                    showColumnInRows(col.index);
+                    visibleColumns++;
+                } else {
+                    col.element.classList.add('column-hidden');
+                    col.element.classList.remove('highlighted-assignment');
+                    hideColumnInRows(col.index);
+                }
+            });
+            
+            updateSearchStats();
+        }
+        
+        function showColumnInRows(columnIndex) {
+            const tableBody = document.getElementById('tableBody');
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            
+            rows.forEach(row => {
+                const cell = row.children[columnIndex];
+                if (cell) {
+                    cell.classList.remove('column-hidden');
+                }
+            });
+        }
+        
+        function hideColumnInRows(columnIndex) {
+            const tableBody = document.getElementById('tableBody');
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            
+            rows.forEach(row => {
+                const cell = row.children[columnIndex];
+                if (cell) {
+                    cell.classList.add('column-hidden');
+                }
+            });
+        }
+        
+        function updateRowVisibility() {
+            const tableBody = document.getElementById('tableBody');
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            
+            rows.forEach(row => {
+                const isStudentFiltered = row.classList.contains('student-filtered');
+                row.style.display = isStudentFiltered ? 'none' : '';
+            });
+        }
+        
+        function updateSearchStats() {
+            const tableBody = document.getElementById('tableBody');
+            const visibleRows = Array.from(tableBody.querySelectorAll('tr')).filter(row => 
+                row.style.display !== 'none' && !row.querySelector('.loading')
+            ).length;
+            
+            const visibleColumns = allAssignmentColumns.filter(col => 
+                !col.element.classList.contains('column-hidden')
+            ).length;
+            
+            let statsText = '';
+            if (currentStudentFilter || currentTagFilter) {
+                const parts = [];
+                if (currentStudentFilter) {
+                    parts.push(`${visibleRows} student(s)`);
+                }
+                if (currentTagFilter) {
+                    parts.push(`${visibleColumns} assignment(s)`);
+                }
+                statsText = `Showing: ${parts.join(', ')}`;
+            } else {
+                statsText = `${visibleRows} students, ${allAssignmentColumns.length} assignments`;
+            }
+            
+            searchStats.textContent = statsText;
+        }
+        
+        function clearStudentSearch() {
+            studentSearchInput.value = '';
+            clearStudentButton.style.display = 'none';
+            currentStudentFilter = '';
+            
+            // Remove student filtering
+            const tableBody = document.getElementById('tableBody');
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+            rows.forEach(row => {
+                row.classList.remove('student-filtered');
+                const studentCell = row.querySelector('.student-info, td:first-child');
+                if (studentCell) {
+                    studentCell.classList.remove('highlighted-student');
+                }
+            });
+            
+            updateRowVisibility();
+            updateSearchStats();
+            studentSearchInput.focus();
+        }
+        
+        function clearTagSearch() {
+            tagSearchInput.value = '';
+            clearTagButton.style.display = 'none';
+            currentTagFilter = '';
+            
+            // Show all columns
+            allAssignmentColumns.forEach(col => {
+                col.element.classList.remove('column-hidden', 'highlighted-assignment');
+                showColumnInRows(col.index);
+            });
+            
+            updateSearchStats();
+            tagSearchInput.focus();
+        }
+        
+        // Event listeners
+        studentSearchInput.addEventListener('input', function() {
+            currentStudentFilter = this.value.trim();
+            
+            if (currentStudentFilter) {
+                clearStudentButton.style.display = 'inline-block';
+            } else {
+                clearStudentButton.style.display = 'none';
+            }
+            
+            performStudentSearch(currentStudentFilter);
+        });
+        
+        tagSearchInput.addEventListener('input', function() {
+            currentTagFilter = this.value.trim();
+            
+            if (currentTagFilter) {
+                clearTagButton.style.display = 'inline-block';
+            } else {
+                clearTagButton.style.display = 'none';
+            }
+            
+            performTagSearch(currentTagFilter);
+        });
+        
+        clearStudentButton.addEventListener('click', clearStudentSearch);
+        clearTagButton.addEventListener('click', clearTagSearch);
+        
+        // Initialize when table is loaded
+        // You'll need to call this after your existing table loading logic
+        function initializeSearch() {
+            initializeColumnData();
+            updateSearchStats();
+        }
+        
+        // Wait for table to load, then initialize
+        // Adjust this timing based on your existing code
+        const checkTableLoaded = setInterval(() => {
+            const tableBody = document.getElementById('tableBody');
+            const loadingCell = tableBody.querySelector('.loading');
+            
+            if (!loadingCell) {
+                clearInterval(checkTableLoaded);
+                initializeSearch();
+            }
+        }, 500);
+        
+        // Expose functions for external use if needed
+        window.gradeSearchFunctions = {
+            initializeSearch,
+            performStudentSearch,
+            performTagSearch
+        };
+    });
+
 // Initialize based on page type
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('tableHeader')) {
