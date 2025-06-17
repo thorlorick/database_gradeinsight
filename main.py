@@ -932,7 +932,11 @@ def get_assignments_by_tag(tag_id: int, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignments by tag: {str(e)}")
-
+#######################################################################################################################################
+@app.get("/debug/tags")
+def debug_tags(db: Session = Depends(get_db)):
+    tags = db.query(Tag).all()
+    return [{"id": t.id, "name": t.name, "assignment_count": len(t.assignments)} for t in tags]
 
 @app.get("/reset-db")
 def reset_db():
