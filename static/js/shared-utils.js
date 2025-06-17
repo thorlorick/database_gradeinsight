@@ -492,6 +492,61 @@ class StudentGradePortal {
     }
 }
 
+
+
+function performSearch(searchTerm) {
+    const lowerSearchTerm = searchTerm.toLowerCase();
+    const table = document.getElementById('gradesTable');
+    const headerRow = document.getElementById('tableHeader');
+    const rows = document.querySelectorAll('#tableBody tr');
+
+    // Get all header cells except the first one (student name)
+    const headers = Array.from(headerRow.children).slice(1);
+    const columnCount = headers.length;
+
+    // Track which columns match the tag
+    const matchingColumns = new Set();
+
+    headers.forEach((th, index) => {
+        const colIndex = index + 1; // because first col is student name
+        rows.forEach(row => {
+            const cell = row.children[colIndex];
+            if (!cell) return;
+            const title = (cell.getAttribute('title') || '').toLowerCase();
+            if (title.includes(lowerSearchTerm)) {
+                matchingColumns.add(colIndex);
+            }
+        });
+    });
+
+    // Show/hide assignment columns based on tag match
+    headers.forEach((th, index) => {
+        const colIndex = index + 1;
+        const display = matchingColumns.has(colIndex) ? '' : 'none';
+        th.style.display = display;
+        rows.forEach(row => {
+            const cell = row.children[colIndex];
+            if (cell) cell.style.display = display;
+        });
+    });
+
+    // Always show the student name column
+    headerRow.children[0].style.display = '';
+    rows.forEach(row => {
+        if (row.children[0]) row.children[0].style.display = '';
+    });
+
+    // Optionally hide rows with no visible grades
+    rows.forEach(row => {
+        const visibleGrades = Array.from(row.children)
+            .slice(1)
+            .filter(td => td.style.display !== 'none');
+        row.style.display = visibleGrades.length ? '' : 'none';
+    });
+
+    updateSearchStats(searchTerm, rows.length, matchingColumns.size);
+}
+
 // Initialize based on page type
 document.addEventListener('DOMContentLoaded', () => {
     if (document.getElementById('tableHeader')) {
@@ -504,3 +559,4 @@ document.addEventListener('DOMContentLoaded', () => {
         new StudentGradePortal();
     }
 });
+
