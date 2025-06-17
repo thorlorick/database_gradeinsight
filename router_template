@@ -1,1 +1,17 @@
+# === Standard Library ===
+from typing import List, Optional
+
+# === Third-Party Packages ===
+from fastapi import APIRouter, Request, Depends, HTTPException, Form, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+# === Internal Modules ===
+from database import get_db
+from models import Student, Assignment, Grade, Tag
+from services import csv_parser, student_service, assignment_service, tag_service
+
+router = APIRouter()
+templates = Jinja2Templates(directory="templates")
 
