@@ -21,7 +21,6 @@ from database import Base, engine, SessionLocal
 from models import Student, Assignment, Grade, Tag
 from downloadTemplate import router as downloadTemplate_router
 
-
 app = FastAPI()
 
 # Make sure templates and static directories exist
@@ -656,6 +655,284 @@ def get_tags(db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
+
+
+@app.get("/api/tags")
+def get_all_tags(db: Session = Depends(get_db)):
+    """Get all tags"""
+    try:
+        tags = db.query(Tag).order_by(Tag.name.asc()).all()
+        result = []
+        
+        for tag in tags:
+            # Count assignments with this tag
+            assignment_count = len(tag.assignments)
+            
+            result.append({
+                "id": tag.id,
+                "name": tag.name,
+                "color": tag.color,
+                "description": tag.description,
+                "assignment_count": assignment_count
+            })
+        
+        return {"tags": result}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
+
+@app.post("/api/tags")
+def create_tag(tag_data: dict, db: Session = Depends(get_db)):
+    """Create a new tag"""
+    try:
+        # Check if tag already exists
+        existing_tag = db.query(Tag).filter_by(name=tag_data.get("name", "").strip()).first()
+        if existing_tag:
+            raise HTTPException(status_code=400, detail="Tag with this name already exists")
+        
+        new_tag = Tag(
+            name=tag_data.get("name", "").strip(),
+            color=tag_data.get("color", "").strip() or None,
+            description=tag_data.get("description", "").strip() or None
+        )
+        
+        db.add(new_tag)
+        db.commit()
+        db.refresh(new_tag)
+        
+        return {
+            "id": new_tag.id,
+            "name": new_tag.name,
+            "color": new_tag.color,
+            "description": new_tag.description,
+            "assignment_count": 0
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error creating tag: {str(e)}")
+
+@app.put("/api/tags/{tag_id}")
+def update_tag(tag_id: int, tag_data: dict, db: Session = Depends(get_db)):
+    """Update an existing tag"""
+    try:
+        tag = db.query(Tag).filter_by(id=tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        # Check if another tag has the same name
+        if tag_data.get("name"):
+            existing_tag = db.query(Tag).filter(
+                Tag.name == tag_data["name"].strip(),
+                Tag.id != tag_id
+            ).first()
+            if existing_tag:
+                raise HTTPException(status_code=400, detail="Another tag with this name already exists")
+        
+        # Update fields
+        if "name" in tag_data:
+            tag.name = tag_data["name"].strip()
+        if "color" in tag_data:
+            tag.color = tag_data["color"].strip() or None
+        if "description" in tag_data:
+            tag.description = tag_data["description"].strip() or None
+        
+        db.commit()
+        db.refresh(tag)
+        
+        return {
+            "id": tag.id,
+            "name": tag.name,
+            "color": tag.color,
+            "description": tag.description,
+            "assignment_count": len(tag.assignments)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error updating tag: {str(e)}")
+
+@app.delete("/api/tags/{tag_id}")
+def delete_tag(tag_id: int, db: Session = Depends(get_db)):
+    """Delete a tag"""
+    try:
+        tag = db.query(Tag).filter_by(id=tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        db.delete(tag)
+        db.commit()
+        
+        return {"message": "Tag deleted successfully"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error deleting tag: {str(e)}")
+
+@app.post("/api/assignments/{assignment_id}/tags/{tag_id}")
+def add_tag_to_assignment(assignment_id: int, tag_id: int, db: Session = Depends(get_db)):
+    """Add a tag to an assignment"""
+    try:
+        assignment = db.query(Assignment).filter_by(id=assignment_id).first()
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        tag = db.query(Tag).filter_by(id=tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        if tag not in assignment.tags:
+            assignment.tags.append(tag)
+            db.commit()
+        
+        return {"message": f"Tag '{tag.name}' added to assignment '{assignment.name}'"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error adding tag to assignment: {str(e)}")
+
+@app.delete("/api/assignments/{assignment_id}/tags/{tag_id}")
+def remove_tag_from_assignment(assignment_id: int, tag_id: int, db: Session = Depends(get_db)):
+    """Remove a tag from an assignment"""
+    try:
+        assignment = db.query(Assignment).filter_by(id=assignment_id).first()
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        tag = db.query(Tag).filter_by(id=tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        if tag in assignment.tags:
+            assignment.tags.remove(tag)
+            db.commit()
+        
+        return {"message": f"Tag '{tag.name}' removed from assignment '{assignment.name}'"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error removing tag from assignment: {str(e)}")
+
+@app.get("/api/assignments/{assignment_id}/tags")
+def get_assignment_tags(assignment_id: int, db: Session = Depends(get_db)):
+    """Get all tags for a specific assignment"""
+    try:
+        assignment = db.query(Assignment).filter_by(id=assignment_id).first()
+        if not assignment:
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        
+        result = []
+        for tag in assignment.tags:
+            result.append({
+                "id": tag.id,
+                "name": tag.name,
+                "color": tag.color,
+                "description": tag.description
+            })
+        
+        return {
+            "assignment_id": assignment.id,
+            "assignment_name": assignment.name,
+            "tags": result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving assignment tags: {str(e)}")
+
+# Update the existing assignments endpoint to include tags
+@app.get("/api/assignments")
+def get_assignments(db: Session = Depends(get_db)):
+    """Get all assignments with their tags"""
+    try:
+        assignments = db.query(Assignment).order_by(Assignment.date.asc(), Assignment.name.asc()).all()
+        result = []
+        
+        for assignment in assignments:
+            # Count students who have grades for this assignment
+            grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
+            
+            # Get tags for this assignment
+            tags = []
+            for tag in assignment.tags:
+                tags.append({
+                    "id": tag.id,
+                    "name": tag.name,
+                    "color": tag.color,
+                    "description": tag.description
+                })
+            
+            result.append({
+                "id": assignment.id,
+                "name": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "max_points": assignment.max_points,
+                "student_count": grade_count,
+                "tags": tags
+            })
+        
+        return {"assignments": result}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
+
+@app.get("/api/assignments/by-tag/{tag_id}")
+def get_assignments_by_tag(tag_id: int, db: Session = Depends(get_db)):
+    """Get all assignments that have a specific tag"""
+    try:
+        tag = db.query(Tag).filter_by(id=tag_id).first()
+        if not tag:
+            raise HTTPException(status_code=404, detail="Tag not found")
+        
+        result = []
+        for assignment in tag.assignments:
+            grade_count = db.query(Grade).filter_by(assignment_id=assignment.id).count()
+            
+            # Get all tags for this assignment
+            assignment_tags = []
+            for tag_item in assignment.tags:
+                assignment_tags.append({
+                    "id": tag_item.id,
+                    "name": tag_item.name,
+                    "color": tag_item.color,
+                    "description": tag_item.description
+                })
+            
+            result.append({
+                "id": assignment.id,
+                "name": assignment.name,
+                "date": assignment.date.isoformat() if assignment.date else None,
+                "max_points": assignment.max_points,
+                "student_count": grade_count,
+                "tags": assignment_tags
+            })
+        
+        return {
+            "tag": {
+                "id": tag.id,
+                "name": tag.name,
+                "color": tag.color,
+                "description": tag.description
+            },
+            "assignments": result
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error retrieving assignments by tag: {str(e)}")
+
 
 @app.get("/reset-db")
 def reset_db():
