@@ -45,13 +45,13 @@ def get_db():
         yield db
     finally:
         db.close()
-
+#######################################################################################################################################
 @app.get("/")
 async def root():
     return RedirectResponse(url="/dashboard")
-
+#######################################################################################################################################
 app.include_router(downloadTemplate_router) #trying to refactor endpoints. this one is to download the template from the dashboard
-
+#######################################################################################################################################
 @app.get("/upload", response_class=HTMLResponse)
 async def upload_form(request: Request, db: Session = Depends(get_db)):
     """Serve the upload form with existing tags"""
@@ -65,7 +65,7 @@ async def upload_form(request: Request, db: Session = Depends(get_db)):
     except Exception as e:
         print(f"Error loading upload form: {e}")
         raise HTTPException(status_code=500, detail=f"Error loading upload form: {str(e)}")
-
+#######################################################################################################################################
 # Add this route to your main.py file to fix the student portal navigation
 @app.get("/student-portal", response_class=HTMLResponse)
 async def student_portal_redirect(request: Request):
@@ -74,7 +74,7 @@ async def student_portal_redirect(request: Request):
         return templates.TemplateResponse("student-portal.html", {"request": request})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading student portal: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/teacher-student-view", response_class=HTMLResponse)
 async def student_portal_redirect(request: Request):
     """Main tecaher-student-view that matches the navigation link"""
@@ -82,7 +82,7 @@ async def student_portal_redirect(request: Request):
         return templates.TemplateResponse("teacher-student-view.html", {"request": request})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading student portal: {str(e)}")
-
+#######################################################################################################################################
 @app.post("/upload")
 async def handle_upload(
     file: UploadFile = File(...), 
@@ -408,7 +408,7 @@ async def handle_upload(
         print(traceback.format_exc())
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/view-students")
 def view_students(db: Session = Depends(get_db)):
     try:
@@ -423,7 +423,7 @@ def view_students(db: Session = Depends(get_db)):
         return {"students": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving students: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/view-grades")
 def view_grades(db: Session = Depends(get_db)):
     try:
@@ -451,21 +451,21 @@ def view_grades(db: Session = Depends(get_db)):
         return {"students": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving grades: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     try:
         return templates.TemplateResponse("dashboard.html", {"request": request})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading dashboard: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/students", response_class=HTMLResponse)
 async def students_page(request: Request):
     try:
         return templates.TemplateResponse("students.html", {"request": request})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading students page: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/api/grades-table")
 def get_grades_for_table(db: Session = Depends(get_db)):
     try:
@@ -492,7 +492,7 @@ def get_grades_for_table(db: Session = Depends(get_db)):
         return {"students": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving grades table: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/api/students")
 def get_students_list(db: Session = Depends(get_db)):
     try:
@@ -515,7 +515,7 @@ def get_students_list(db: Session = Depends(get_db)):
         return {"students": result}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving students list: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/api/student/{email}")
 def get_student_by_email(email: str, db: Session = Depends(get_db)):
     student = db.query(Student).filter_by(email=email.lower().strip()).first()
@@ -555,7 +555,7 @@ def get_student_by_email(email: str, db: Session = Depends(get_db)):
         "total_assignments": len(grades_list),
         "grades": grades_list
     }
-
+#######################################################################################################################################
 @app.get("/api/search-students")
 def search_students(query: str = "", db: Session = Depends(get_db)):
     """Search students by name or email"""
@@ -605,7 +605,7 @@ def search_students(query: str = "", db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching students: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/api/assignments")
 def get_assignments(db: Session = Depends(get_db)):
     """Get all assignments with their tags"""
@@ -633,7 +633,7 @@ def get_assignments(db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/api/tags")
 def get_tags(db: Session = Depends(get_db)):
     """Get all tags"""
@@ -655,7 +655,7 @@ def get_tags(db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
-
+#######################################################################################################################################
 
 @app.get("/api/tags")
 def get_all_tags(db: Session = Depends(get_db)):
@@ -680,7 +680,7 @@ def get_all_tags(db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving tags: {str(e)}")
-
+#######################################################################################################################################
 @app.post("/api/tags")
 def create_tag(tag_data: dict, db: Session = Depends(get_db)):
     """Create a new tag"""
@@ -713,7 +713,7 @@ def create_tag(tag_data: dict, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error creating tag: {str(e)}")
-
+#######################################################################################################################################
 @app.put("/api/tags/{tag_id}")
 def update_tag(tag_id: int, tag_data: dict, db: Session = Depends(get_db)):
     """Update an existing tag"""
@@ -755,7 +755,7 @@ def update_tag(tag_id: int, tag_data: dict, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error updating tag: {str(e)}")
-
+#######################################################################################################################################
 @app.delete("/api/tags/{tag_id}")
 def delete_tag(tag_id: int, db: Session = Depends(get_db)):
     """Delete a tag"""
@@ -774,7 +774,7 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error deleting tag: {str(e)}")
-
+#######################################################################################################################################
 @app.post("/api/assignments/{assignment_id}/tags/{tag_id}")
 def add_tag_to_assignment(assignment_id: int, tag_id: int, db: Session = Depends(get_db)):
     """Add a tag to an assignment"""
@@ -798,7 +798,7 @@ def add_tag_to_assignment(assignment_id: int, tag_id: int, db: Session = Depends
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error adding tag to assignment: {str(e)}")
-
+#######################################################################################################################################
 @app.delete("/api/assignments/{assignment_id}/tags/{tag_id}")
 def remove_tag_from_assignment(assignment_id: int, tag_id: int, db: Session = Depends(get_db)):
     """Remove a tag from an assignment"""
@@ -822,7 +822,7 @@ def remove_tag_from_assignment(assignment_id: int, tag_id: int, db: Session = De
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error removing tag from assignment: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/api/assignments/{assignment_id}/tags")
 def get_assignment_tags(assignment_id: int, db: Session = Depends(get_db)):
     """Get all tags for a specific assignment"""
@@ -850,7 +850,7 @@ def get_assignment_tags(assignment_id: int, db: Session = Depends(get_db)):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignment tags: {str(e)}")
-
+#######################################################################################################################################
 # Update the existing assignments endpoint to include tags
 @app.get("/api/assignments")
 def get_assignments(db: Session = Depends(get_db)):
@@ -886,7 +886,7 @@ def get_assignments(db: Session = Depends(get_db)):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignments: {str(e)}")
-
+#######################################################################################################################################
 @app.get("/api/assignments/by-tag/{tag_id}")
 def get_assignments_by_tag(tag_id: int, db: Session = Depends(get_db)):
     """Get all assignments that have a specific tag"""
@@ -933,10 +933,6 @@ def get_assignments_by_tag(tag_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error retrieving assignments by tag: {str(e)}")
 #######################################################################################################################################
-@app.get("/debug/tags")
-def debug_tags(db: Session = Depends(get_db)):
-    tags = db.query(Tag).all()
-    return [{"id": t.id, "name": t.name, "assignment_count": len(t.assignments)} for t in tags]
 
 @app.get("/reset-db")
 def reset_db():
@@ -949,7 +945,7 @@ def reset_db():
         raise HTTPException(status_code=500, detail=f"Error resetting database: {str(e)}")
     finally:
         db.close()
-
+#######################################################################################################################################
 # Add a health check endpoint
 @app.get("/health")
 def health_check():
