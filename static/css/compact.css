@@ -638,3 +638,124 @@ tr:hover, .grades-table tr:hover, .grades-table tbody tr:hover {
         padding: 8px;
     }
 }
+
+/* Tag filtering styles */
+.tag-filter-section {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0;
+    display: none; /* Hidden by default, shown when tags are available */
+}
+
+.tag-filter-title {
+    font-size: 1.2em;
+    font-weight: 600;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.tag-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.tag-button {
+    background: #fff;
+    border: 2px solid #007bff;
+    color: #007bff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.tag-button:hover {
+    background: #007bff;
+    color: white;
+    transform: translateY(-1px);
+}
+
+.tag-button.active {
+    background: #007bff;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0,123,255,0.3);
+}
+
+.tag-button.disabled {
+    background: #e9ecef;
+    border-color: #e9ecef;
+    color: #6c757d;
+    cursor: not-allowed;
+}
+
+.tag-button.disabled:hover {
+    transform: none;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.filter-btn {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+}
+
+.filter-btn:hover {
+    background: #218838;
+}
+
+.filter-stats {
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+}
+
+/* Assignment tags display */
+.assignment-tags {
+    margin-top: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.assignment-tags .tag {
+    background: #e9ecef;
+    color: #495057;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75em;
+    font-weight: 500;
+}
+
+/* Responsive design for smaller screens */
+@media (max-width: 768px) {
+    .tag-controls {
+        justify-content: center;
+    }
+    
+    .filter-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    .filter-stats {
+        text-align: center;
+    }
+}
