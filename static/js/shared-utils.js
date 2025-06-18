@@ -401,7 +401,7 @@ class GradesTable {
     }
 }
 
-// student-portal.js - Student portal (unchanged)
+// Enhanced student-portal.js with tag filtering
 class StudentGradePortal {
     constructor() {
         this.emailInput = document.getElementById('emailInput');
@@ -409,6 +409,14 @@ class StudentGradePortal {
         this.clearBtn = document.getElementById('clearBtn');
         this.resultsSection = document.getElementById('resultsSection');
         this.searchStats = document.getElementById('searchStats');
+        
+        // Tag filtering properties
+        this.allGrades = [];
+        this.filteredGrades = [];
+        this.availableTags = [];
+        this.selectedTags = [];
+        this.currentStudent = null;
+        
         this.init();
     }
 
@@ -445,6 +453,13 @@ class StudentGradePortal {
         this.searchStats.style.display = 'none';
         this.emailInput.value = '';
         this.emailInput.focus();
+        
+        // Reset tag filtering
+        this.allGrades = [];
+        this.filteredGrades = [];
+        this.availableTags = [];
+        this.selectedTags = [];
+        this.currentStudent = null;
     }
 
     async searchGrades() {
@@ -477,6 +492,12 @@ class StudentGradePortal {
             }
             
             const studentData = await response.json();
+            this.currentStudent = studentData;
+            this.allGrades = studentData.grades || [];
+            this.filteredGrades = [...this.allGrades];
+            
+            // Extract and setup tags
+            this.extractAvailableTags();
             this.displayStudentGrades(studentData);
             
         } catch (error) {
@@ -487,13 +508,193 @@ class StudentGradePortal {
         }
     }
 
+    extractAvailableTags() {
+        const tagSet = new Set();
+        
+        this.allGrades.forEach(grade => {
+            // Check different possible tag formats
+            if (grade.tags) {
+                if (Array.isArray(grade.tags)) {
+                    // Tags as array: ["math", "quiz"]
+                    grade.tags.forEach(tag => tagSet.add(tag.toLowerCase()));
+                } else if (typeof grade.tags === 'string') {
+                    // Tags as comma-separated string: "math,quiz"
+                    grade.tags.split(',').forEach(tag => tagSet.add(tag.trim().toLowerCase()));
+                }
+            }
+            
+            // Alternative: tags might be on assignment level
+            if (grade.assignment_tags) {
+                if (Array.isArray(grade.assignment_tags)) {
+                    grade.assignment_tags.forEach(tag => tagSet.add(tag.toLowerCase()));
+                } else if (typeof grade.assignment_tags === 'string') {
+                    grade.assignment_tags.split(',').forEach(tag => tagSet.add(tag.trim().toLowerCase()));
+                }
+            }
+        });
+        
+        this.availableTags = Array.from(tagSet).sort();
+    }
+
+    createTagFilterSection() {
+        if (this.availableTags.length === 0) {
+            return ''; // No tags available
+        }
+
+        const tagButtons = this.availableTags.map(tag => {
+            const isSelected = this.selectedTags.includes(tag);
+            const activeClass = isSelected ? 'active' : '';
+            return `<button class="tag-button ${activeClass}" data-tag="${tag}">
+                ${GradeUtils.escapeHtml(tag)}
+            </button>`;
+        }).join('');
+
+        return `
+            <div class="tag-filter-section" id="tagFilterSection">
+                <div class="tag-filter-title">Filter by Tags</div>
+                <div class="tag-controls" id="tagControls">
+                    ${tagButtons}
+                </div>
+                <div class="filter-actions">
+                    <button class="filter-btn" id="clearTagsBtn">Clear All</button>
+                    <div class="filter-stats" id="filterStats">
+                        ${this.getFilterStatsText()}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    setupTagFilterEvents() {
+        const tagFilterSection = document.getElementById('tagFilterSection');
+        if (!tagFilterSection) return;
+
+        // Tag button clicks
+        const tagButtons = tagFilterSection.querySelectorAll('.tag-button');
+        tagButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                const tag = e.target.dataset.tag;
+                this.toggleTag(tag);
+            });
+        });
+
+        // Clear all tags button
+        const clearTagsBtn = document.getElementById('clearTagsBtn');
+        if (clearTagsBtn) {
+            clearTagsBtn.addEventListener('click', () => {
+                this.clearAllTags();
+            });
+        }
+    }
+
+    toggleTag(tag) {
+        const index = this.selectedTags.indexOf(tag);
+        if (index > -1) {
+            // Remove tag
+            this.selectedTags.splice(index, 1);
+        } else {
+            // Add tag
+            this.selectedTags.push(tag);
+        }
+        
+        this.updateTagButtons();
+        this.applyTagFilter();
+    }
+
+    clearAllTags() {
+        this.selectedTags = [];
+        this.updateTagButtons();
+        this.applyTagFilter();
+    }
+
+    updateTagButtons() {
+        const tagButtons = document.querySelectorAll('.tag-button');
+        tagButtons.forEach(button => {
+            const tag = button.dataset.tag;
+            if (this.selectedTags.includes(tag)) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+    }
+
+    applyTagFilter() {
+        if (this.selectedTags.length === 0) {
+            // No tags selected, show all grades
+            this.filteredGrades = [...this.allGrades];
+        } else {
+            // Filter grades that have at least one of the selected tags
+            this.filteredGrades = this.allGrades.filter(grade => {
+                const gradeTags = this.getGradeTags(grade);
+                return this.selectedTags.some(selectedTag => 
+                    gradeTags.includes(selectedTag)
+                );
+            });
+        }
+
+        // Update the display
+        this.updateGradesTable();
+        this.updateFilterStats();
+    }
+
+    getGradeTags(grade) {
+        const tags = [];
+        
+        if (grade.tags) {
+            if (Array.isArray(grade.tags)) {
+                tags.push(...grade.tags.map(tag => tag.toLowerCase()));
+            } else if (typeof grade.tags === 'string') {
+                tags.push(...grade.tags.split(',').map(tag => tag.trim().toLowerCase()));
+            }
+        }
+        
+        if (grade.assignment_tags) {
+            if (Array.isArray(grade.assignment_tags)) {
+                tags.push(...grade.assignment_tags.map(tag => tag.toLowerCase()));
+            } else if (typeof grade.assignment_tags === 'string') {
+                tags.push(...grade.assignment_tags.split(',').map(tag => tag.trim().toLowerCase()));
+            }
+        }
+        
+        return [...new Set(tags)]; // Remove duplicates
+    }
+
+    updateGradesTable() {
+        const tableContainer = document.querySelector('.grades-table-container');
+        if (tableContainer) {
+            const gradesTableHtml = this.filteredGrades.length > 0 
+                ? this.generateGradesTable(this.filteredGrades)
+                : '<p class="no-data">No assignments match the selected tags.</p>';
+            
+            tableContainer.innerHTML = gradesTableHtml;
+        }
+    }
+
+    updateFilterStats() {
+        const filterStats = document.getElementById('filterStats');
+        if (filterStats) {
+            filterStats.textContent = this.getFilterStatsText();
+        }
+    }
+
+    getFilterStatsText() {
+        if (this.selectedTags.length === 0) {
+            return `Showing all ${this.allGrades.length} assignments`;
+        } else {
+            return `Showing ${this.filteredGrades.length} of ${this.allGrades.length} assignments (${this.selectedTags.join(', ')})`;
+        }
+    }
+
     displayStudentGrades(student) {
-        const overallPercentage = student.overall_percentage || 0;
+        const overallPercentage = this.calculateFilteredOverallPercentage();
         const gradeClass = GradeUtils.getGradeClass(overallPercentage);
         const gradeLetter = GradeUtils.getGradeLetter(overallPercentage);
         
-        const gradesTableHtml = student.grades && student.grades.length > 0 
-            ? this.generateGradesTable(student.grades)
+        const tagFilterHtml = this.createTagFilterSection();
+        
+        const gradesTableHtml = this.filteredGrades.length > 0 
+            ? this.generateGradesTable(this.filteredGrades)
             : '<p class="no-data">No assignments found.</p>';
 
         this.searchStats.textContent = `Found ${student.total_assignments || 0} assignments for ${student.first_name} ${student.last_name}`;
@@ -506,23 +707,25 @@ class StudentGradePortal {
                 
                 <div class="overall-stats">
                     <div class="stat-box">
-                        <span class="stat-value">${student.total_assignments || 0}</span>
-                        <div class="stat-label">Total Assignments</div>
+                        <span class="stat-value">${this.filteredGrades.length}</span>
+                        <div class="stat-label">${this.selectedTags.length > 0 ? 'Filtered' : 'Total'} Assignments</div>
                     </div>
                     <div class="stat-box">
-                        <span class="stat-value">${student.total_points || 0}</span>
+                        <span class="stat-value">${this.calculateFilteredPoints()}</span>
                         <div class="stat-label">Points Earned</div>
                     </div>
                     <div class="stat-box">
-                        <span class="stat-value">${student.max_possible || 0}</span>
+                        <span class="stat-value">${this.calculateFilteredMaxPoints()}</span>
                         <div class="stat-label">Points Possible</div>
                     </div>
                 </div>
                 
                 <div class="overall-grade ${gradeClass}">
-                    Overall Grade: ${overallPercentage.toFixed(1)}% (${gradeLetter})
+                    ${this.selectedTags.length > 0 ? 'Filtered' : 'Overall'} Grade: ${overallPercentage.toFixed(1)}% (${gradeLetter})
                 </div>
             </div>
+            
+            ${tagFilterHtml}
             
             <div class="grades-table-container">
                 ${gradesTableHtml}
@@ -531,6 +734,32 @@ class StudentGradePortal {
 
         this.resultsSection.style.display = 'block';
         this.resultsSection.scrollIntoView({ behavior: 'smooth' });
+        
+        // Setup tag filter events after DOM is updated
+        this.setupTagFilterEvents();
+        
+        // Show tag filter section if tags are available
+        if (this.availableTags.length > 0) {
+            const tagSection = document.getElementById('tagFilterSection');
+            if (tagSection) tagSection.style.display = 'block';
+        }
+    }
+
+    calculateFilteredOverallPercentage() {
+        if (this.filteredGrades.length === 0) return 0;
+        
+        const totalPoints = this.calculateFilteredPoints();
+        const maxPoints = this.calculateFilteredMaxPoints();
+        
+        return maxPoints > 0 ? (totalPoints / maxPoints) * 100 : 0;
+    }
+
+    calculateFilteredPoints() {
+        return this.filteredGrades.reduce((sum, grade) => sum + (grade.score || 0), 0);
+    }
+
+    calculateFilteredMaxPoints() {
+        return this.filteredGrades.reduce((sum, grade) => sum + (grade.max_points || 0), 0);
     }
 
     generateGradesTable(grades) {
@@ -539,11 +768,18 @@ class StudentGradePortal {
             const gradeClass = GradeUtils.getGradeClass(percentage);
             const date = grade.date ? GradeUtils.formatDate(grade.date) : 'No date';
             
+            // Display tags if available
+            const tags = this.getGradeTags(grade);
+            const tagDisplay = tags.length > 0 
+                ? `<div class="assignment-tags">${tags.map(tag => `<span class="tag">${GradeUtils.escapeHtml(tag)}</span>`).join('')}</div>`
+                : '';
+            
             return `
                 <tr>
                     <td>
                         <div class="assignment-name">${GradeUtils.escapeHtml(grade.assignment)}</div>
                         <div class="assignment-date">${date}</div>
+                        ${tagDisplay}
                     </td>
                     <td class="score-cell">${grade.score} / ${grade.max_points}</td>
                     <td class="percentage-cell">
@@ -596,7 +832,6 @@ class StudentGradePortal {
         this.resultsSection.style.display = 'block';
     }
 }
-
 
  // Enhanced search functionality for both students and tags
     document.addEventListener('DOMContentLoaded', function() {
